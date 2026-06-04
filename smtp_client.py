@@ -109,8 +109,8 @@ class SMTPClient:
         Constitution §6.1: decrypt SMTP password at send time.
         Key must be loaded from environment — never hardcoded.
         """
-        import os
-        key = os.environ.get("GTM_SMTP_ENCRYPTION_KEY")
+        from .config.secrets import get_smtp_encryption_key
+        key = get_smtp_encryption_key()
         if not key:
             raise SMTPConfigError(
                 "GTM_SMTP_ENCRYPTION_KEY not set. "
