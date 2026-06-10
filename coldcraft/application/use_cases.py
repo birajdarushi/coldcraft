@@ -51,6 +51,9 @@ def _effective_policies(overrides: dict | None) -> dict:
         for k, v in overrides.items():
             if v is not None:
                 base[k] = v
+    for key in ("daily_send_limit", "max_company_emails_30d", "subject_max_chars"):
+        if key in base and base[key] is not None:
+            base[key] = policies.clamp_policy_value(key, base[key])
     return base
 
 
@@ -246,7 +249,7 @@ class CreateDraftUseCase:
                 return result
 
             logger.warning(f"QA gate FAIL (attempt {attempt + 1}): {result['violations']}")
-            if attempt < policies.QA_MAX_RETRIES:
+            if attempt < qa_retries:
                 draft = self.drafter.revise(draft, result["violations"])
                 payload.update(
                     {

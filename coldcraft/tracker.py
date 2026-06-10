@@ -73,7 +73,7 @@ class Tracker:
                 campaign_id=campaign_id,
                 event_type="opened",
                 occurred_at=datetime.now(timezone.utc),
-                event_metadata=str(metadata or {}),
+                event_metadata=metadata or {},
             )
             db.add(event)
             db.commit()
@@ -92,7 +92,7 @@ class Tracker:
                 campaign_id=campaign_id,
                 event_type="clicked",
                 occurred_at=datetime.now(timezone.utc),
-                event_metadata=str({"url": url}),
+                event_metadata={"url": url},
             )
             db.add(event)
             db.commit()

@@ -1,7 +1,19 @@
+from datetime import date, datetime, timedelta, timezone as dtz
+
 from fastapi import APIRouter, HTTPException, Query
 
 from ...domain.errors import MailerAgentError
 from ..schemas import ReplyRequest
+
+
+def _scheduled_for_str(value) -> str:
+    if value is None:
+        raise HTTPException(status_code=422, detail="scheduled_for is required")
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, str):
+        return value
+    raise HTTPException(status_code=422, detail="Invalid scheduled_for type")
 
 
 def get_campaigns_router(campaigns_repo, agent) -> APIRouter:
@@ -21,14 +33,12 @@ def get_campaigns_router(campaigns_repo, agent) -> APIRouter:
         campaign = campaigns_repo.get_campaign(campaign_id)
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        # followup from current policy (or DB tasks)
         pol = campaigns_repo.get_policies() or {}
         followup_days = pol.get("followup_days") or [5, 12]
-        from datetime import datetime, timedelta, timezone as dtz
-        now = datetime.now(dtz.utc)
+        anchor = campaign.sent_at or campaign.created_at or datetime.now(dtz.utc)
         schedule = []
         for d in followup_days:
-            schedule.append((now + timedelta(days=d)).date().isoformat())
+            schedule.append((anchor + timedelta(days=d)).date().isoformat())
         detail = {
             "id": campaign.id,
             "subject": campaign.subject,
@@ -75,12 +85,11 @@ def get_campaigns_router(campaigns_repo, agent) -> APIRouter:
     @router.post("/{campaign_id}/followups")
     def schedule_followups(campaign_id: str):
         followups = agent.schedule_followups(campaign_id)
-        # Persist as scheduled_tasks for visibility
         for f in followups:
             campaigns_repo.create_scheduled_task(
                 campaign_id=campaign_id,
                 task_type=f.get("type", "followup"),
-                scheduled_for=f.get("scheduled_for").isoformat() if hasattr(f.get("scheduled_for"), "isoformat") else str(f.get("scheduled_for")),
+                scheduled_for=_scheduled_for_str(f.get("scheduled_for")),
             )
         return {"followups": followups}
 

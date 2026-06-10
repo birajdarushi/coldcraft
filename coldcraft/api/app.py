@@ -18,7 +18,7 @@ from .routers import (
     get_policies_router,
     get_profile_router,
     health_router,
-    tracking_router,
+    get_tracking_router,
 )
 from .schemas import DraftRequest, ReplyRequest
 
@@ -82,7 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router, prefix="/api/v1")
 
     # Tracking (p1-tracking-api): public /track/* (no /api/v1 for pixel compat in emails)
-    # Mount at root so /track/open etc work directly
+    tracking_router = get_tracking_router(campaigns)
     app.include_router(tracking_router, prefix="")
 
     # Stats (p1-stats-api) - simple aggregates using repo

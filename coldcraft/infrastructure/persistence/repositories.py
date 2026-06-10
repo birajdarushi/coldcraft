@@ -21,7 +21,7 @@ class SQLAlchemyCampaignRepository:
             today = datetime.now(timezone.utc).date()
             return db.query(Campaign).filter(
                 Campaign.status == "sent",
-                Campaign.sent_at >= datetime.combine(today, datetime.min.time()),
+                Campaign.sent_at >= datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc),
             ).count()
 
     def sent_to_company_30d(self, company: str) -> int:
@@ -121,7 +121,7 @@ class SQLAlchemyCampaignRepository:
     def mark_campaign_opened(self, campaign_id: str) -> None:
         with get_session() as db:
             campaign = db.query(Campaign).filter_by(id=campaign_id).first()
-            if campaign and campaign.status not in ("sent", "opened", "replied"):
+            if campaign and campaign.status == "sent":
                 campaign.status = "opened"
                 db.commit()
 
@@ -131,8 +131,6 @@ class SQLAlchemyCampaignRepository:
 
     def create_scheduled_task(self, campaign_id: str, task_type: str, scheduled_for: str) -> None:
         with get_session() as db:
-            # scheduled_for as iso or datetime str; for simplicity store as pending
-            from datetime import datetime, timezone
             dt = datetime.fromisoformat(scheduled_for.replace("Z", "+00:00")) if isinstance(scheduled_for, str) else scheduled_for
             task = ScheduledTask(
                 campaign_id=campaign_id,
@@ -246,6 +244,13 @@ class SQLAlchemyCampaignRepository:
         subject_max_chars: int | None = None,
         followup_days: list | None = None,
     ) -> None:
+        from ...domain import policies as domain_policies
+
+        domain_policies.validate_policy_overrides(
+            daily_send_limit=daily_send_limit,
+            max_company_emails_30d=max_company_emails_30d,
+            subject_max_chars=subject_max_chars,
+        )
         with get_session() as db:
             existing = db.query(PolicyConfig).first()
             if existing:

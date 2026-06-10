@@ -32,7 +32,7 @@ class EmailEvent(Base):
     campaign_id: Mapped[str] = mapped_column(String(36), index=True)
     event_type: Mapped[str] = mapped_column(String(64))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    event_metadata: Mapped[dict | str | None] = mapped_column(JSON, nullable=True)
+    event_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
 
 class UserConfig(Base):

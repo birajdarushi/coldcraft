@@ -7,13 +7,11 @@ from ..schemas import PolicyResponse, PolicyUpdate, serialize_policies
 def get_policies_router(campaigns_repo) -> APIRouter:
     """Policies API with constitution clamping.
 
-    Allows overriding some limits (e.g. daily_send_limit) but enforces
-    hard floors from the constitution and API ceilings.
+    Overrides may only be stricter than constitution hard limits, never weaker.
     """
     router = APIRouter(prefix="/policies", tags=["policies"])
 
     constitution_floors = policies.CONSTITUTION_FLOORS
-    ceilings = policies.POLICY_CEILINGS
 
     @router.get("", response_model=PolicyResponse)
     def get_policies():
@@ -22,34 +20,23 @@ def get_policies_router(campaigns_repo) -> APIRouter:
 
     @router.put("", response_model=PolicyResponse)
     def put_policies(body: PolicyUpdate):
-        # Validation against constitution floors and ceilings
-        # For daily_send_limit (a max), we allow raising above the constitution default up to ceiling
-        if body.daily_send_limit is not None:
-            ceiling = ceilings.get("daily_send_limit", 1000)
-            if body.daily_send_limit > ceiling:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"daily_send_limit cannot exceed ceiling of {ceiling}",
-                )
+        try:
+            policies.validate_policy_overrides(
+                daily_send_limit=body.daily_send_limit,
+                max_company_emails_30d=body.max_company_emails_30d,
+                subject_max_chars=body.subject_max_chars,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-        if body.max_company_emails_30d is not None:
-            floor = constitution_floors["max_company_emails_30d"]
-            ceiling = ceilings.get("max_company_emails_30d", 100)
-            if body.max_company_emails_30d < floor or body.max_company_emails_30d > ceiling:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"max_company_emails_30d must be between {floor} and {ceiling}",
-                )
+        if body.daily_send_limit is not None and body.daily_send_limit < 1:
+            raise HTTPException(status_code=422, detail="daily_send_limit must be at least 1")
 
-        if body.subject_max_chars is not None:
-            floor = constitution_floors["subject_max_chars"]
-            if body.subject_max_chars < floor:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"subject_max_chars cannot be below hard limit {floor}",
-                )
+        if body.max_company_emails_30d is not None and body.max_company_emails_30d < 1:
+            raise HTTPException(status_code=422, detail="max_company_emails_30d must be at least 1")
 
-        # followup_days could be validated too, but not in current verifs
+        if body.subject_max_chars is not None and body.subject_max_chars < 1:
+            raise HTTPException(status_code=422, detail="subject_max_chars must be at least 1")
 
         campaigns_repo.save_policies(
             daily_send_limit=body.daily_send_limit,

@@ -8,7 +8,7 @@ from .integrations import get_integrations_router
 from .jobs import get_jobs_router
 from .policies import get_policies_router
 from .profile import get_profile_router
-from .tracking import tracking_router
+from .tracking import get_tracking_router
 
 __all__ = [
     "health_router",
@@ -20,5 +20,5 @@ __all__ = [
     "get_jobs_router",
     "get_policies_router",
     "get_profile_router",
-    "tracking_router",
+    "get_tracking_router",
 ]
