@@ -307,19 +307,24 @@ function App() {
     setProfileForm((f) => ({ ...f, [field]: arr }))
   }
 
-  // Load on tab switch + initial dashboard
   useEffect(() => {
     if (tab === 'dashboard' && !stats && !statsLoading) {
       loadStats()
     }
+  }, [tab, stats, statsLoading])
+
+  useEffect(() => {
     if (tab === 'campaigns' && campaigns.length === 0 && !campaignsLoading) {
       loadCampaigns(statusFilter || undefined)
     }
+  }, [tab, campaigns.length, campaignsLoading, statusFilter])
+
+  useEffect(() => {
     if (tab === 'config') {
       if (!config && !configLoading) loadConfig()
       if (!profile && !profileLoading) loadProfile()
     }
-  }, [tab])
+  }, [tab, config, configLoading, profile, profileLoading])
 
   return (
     <div className="shell">

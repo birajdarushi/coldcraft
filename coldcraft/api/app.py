@@ -101,11 +101,6 @@ def create_app() -> FastAPI:
             "pending_approvals": pending,
         }
 
-    # Legacy root-level routes (still functional, documented as deprecated for transition)
-    app.include_router(health_router, prefix="", deprecated=True, include_in_schema=True)
-    app.include_router(drafts_router, prefix="", deprecated=True, include_in_schema=True)
-    app.include_router(campaigns_router, prefix="", deprecated=True, include_in_schema=True)
-
     return app
 
 

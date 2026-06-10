@@ -19,9 +19,6 @@ dependencies = [
     "pydantic>=2.9.0",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=8.0.0"]
-
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["coldcraft*"]

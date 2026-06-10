@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Repository root** | `/Users/rushiraj/Desktop/Personal/gtm` |
+| **Repository root** | `<repository-root>` |
 | **Standard startup** | `python3 scripts/dev_up.py` |
 | **Standard verification** | `PYTHONPATH=. python3 -m unittest discover -s tests/unit -p 'test_*.py' -q` |
 | **Current phase** | 0 → 1 (foundation done, operable loop next) |
@@ -93,9 +93,10 @@
 | **Evidence recorded** | See feature_list.json (now passing). All verifs + mailer respect (limit from DB enforced in preflight). |
 | **Commits** | (pending) |
 | **Known risks** | validators.py still uses direct module policies (self-review in use case now uses overrides; daily limit verif covered). |
-| **Next best action** | p1-features-api (feature flags like tracking_enabled). |
+| **Next best action** | p1-frontend-shell (minimal React UI shell). |
 
 ### Session 2026-06-10 — p1-frontend-shell (Minimal React UI shell)
+
 | Field | Value |
 |-------|-------|
 | **Goal** | Thin React + Vite + TS shell: Dashboard (stats only), Campaigns list + detail/preview, Config + Profile screens — 100% data from /api/v1, no hardcodes. |
@@ -127,5 +128,5 @@
 | **Verification run** | `./init.sh` (7 tests green); docker compose rebuild api; POST scrape GitLab Greenhouse board (142 jobs); GET /jobs normalized rows; second scrape skipped=142; OpenAPI paths confirmed |
 | **Evidence recorded** | See feature_list.json (p2-scraper now passing). All 3 verifs + unit tests + OpenAPI. |
 | **Commits** | (pending) |
-| **Known risks** | Greenhouse HTML entities in description field (cosmetic). Apify/linkedin source not wired yet. |
+| **Known risks** | Greenhouse HTML entities in description field (cosmetic). Apify/LinkedIn source not wired yet. |
 | **Next best action** | p2-intel-report. Update handoff + clean-state at session end. |

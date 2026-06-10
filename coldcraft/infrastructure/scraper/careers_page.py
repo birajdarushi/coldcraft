@@ -16,7 +16,15 @@ def stable_job_id(url: str) -> str:
     return hashlib.sha256(url.strip().lower().encode()).hexdigest()[:32]
 
 
+def _validate_url_scheme(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ScraperError(f"Unsupported URL scheme: {parsed.scheme or '(none)'}")
+    return url
+
+
 def _fetch_json(url: str, timeout: int = 20) -> object:
+    _validate_url_scheme(url)
     req = urllib.request.Request(url, headers={"User-Agent": "ColdcraftScraper/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -26,6 +34,7 @@ def _fetch_json(url: str, timeout: int = 20) -> object:
 
 
 def _fetch_html(url: str, timeout: int = 20) -> str:
+    _validate_url_scheme(url)
     req = urllib.request.Request(url, headers={"User-Agent": "ColdcraftScraper/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:

@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from ...config.secrets import encrypt_secret
 from ..schemas import IntegrationResponse, IntegrationUpdate, serialize_integrations
+
+logger = logging.getLogger(__name__)
 
 
 def get_integrations_router(campaigns_repo) -> APIRouter:
@@ -26,8 +30,9 @@ def get_integrations_router(campaigns_repo) -> APIRouter:
         if body.apify_token:
             try:
                 apify_enc = encrypt_secret(body.apify_token)
-            except RuntimeError as e:
-                raise HTTPException(status_code=500, detail=str(e)) from e
+            except RuntimeError:
+                logger.exception("Failed to encrypt integration secret")
+                raise HTTPException(status_code=500, detail="Internal server error") from None
         # If no new token provided, we pass None so repo preserves existing enc value
 
         campaigns_repo.save_integrations(

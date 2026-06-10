@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from ...application.use_cases import ScrapeJobsUseCase
 from ...domain.errors import ScraperError
 from ...infrastructure.scraper import CareersPageScraper
-from ..schemas import ScrapeRequest, ScrapeResponse
+from ..schemas import JobResponse, ScrapeRequest, ScrapeResponse
 
 
 def get_jobs_router(campaigns_repo) -> APIRouter:
@@ -18,7 +18,7 @@ def get_jobs_router(campaigns_repo) -> APIRouter:
         except ScraperError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    @router.get("", response_model=list)
+    @router.get("", response_model=list[JobResponse])
     def list_jobs(
         company: str | None = Query(None, description="Filter by company name"),
         limit: int = Query(100, ge=1, le=1000),

@@ -2,11 +2,14 @@ import unittest
 from unittest.mock import patch
 
 from coldcraft.application.use_cases import ScrapeJobsUseCase
+from coldcraft.domain.errors import ScraperError
 from coldcraft.domain.models import NormalizedJob
 from coldcraft.infrastructure.scraper.careers_page import (
     CareersPageScraper,
     stable_job_id,
     _collect_job_postings,
+    _fetch_html,
+    _fetch_json,
     _normalize_json_ld,
 )
 
@@ -103,6 +106,18 @@ class GreenhouseScraperTests(unittest.TestCase):
         self.assertEqual(len(jobs), 1)
         self.assertEqual(jobs[0].title, "Platform Engineer")
         self.assertEqual(jobs[0].url, "https://boards.greenhouse.io/acme/jobs/99")
+
+
+class UrlSchemeValidationTests(unittest.TestCase):
+    def test_rejects_file_scheme_for_json_fetch(self):
+        with self.assertRaises(ScraperError) as ctx:
+            _fetch_json("file:///etc/passwd")
+        self.assertIn("Unsupported URL scheme", str(ctx.exception))
+
+    def test_rejects_file_scheme_for_html_fetch(self):
+        with self.assertRaises(ScraperError) as ctx:
+            _fetch_html("file:///etc/passwd")
+        self.assertIn("Unsupported URL scheme", str(ctx.exception))
 
 
 if __name__ == "__main__":
