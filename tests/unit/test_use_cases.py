@@ -57,6 +57,30 @@ class DummyCampaignRepo:
     def create_draft_campaign(self, draft, request):
         return "cid"
 
+    def get_user_config(self):
+        return None
+
+    def save_user_config(self, smtp_host, smtp_port, smtp_user, smtp_pass_enc, from_email, from_name, tracking_domain=None):
+        pass
+
+    def get_sender_profile(self):
+        return None
+
+    def save_sender_profile(self, name, email, skills, proof_points, tone=None):
+        pass
+
+    def get_policies(self):
+        return None
+
+    def save_policies(self, daily_send_limit=None, max_company_emails_30d=None, subject_max_chars=None, followup_days=None):
+        pass
+
+    def get_features(self):
+        return {"tracking_enabled": True, "auto_followups": True}
+
+    def save_features(self, tracking_enabled=None, auto_followups=None):
+        pass
+
 
 class CreateDraftUseCaseTests(unittest.TestCase):
     def test_blocks_do_not_contact(self):

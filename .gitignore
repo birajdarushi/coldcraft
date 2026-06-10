@@ -97,7 +97,7 @@ ipython_config.py
 #   Similar to Pipfile.lock, pdm.lock is generally recommended to be committed.
 #   pdm.lock
 
-# virtualenv
+# virtualenv (keep .venv locally; init.sh creates it)
 .venv/
 venv/
 ENV/
@@ -128,6 +128,10 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Local dev (auto-generated)
+.env
+docker-compose.platform.yml
 
 # OS-specific
 .DS_Store
