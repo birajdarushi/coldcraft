@@ -133,6 +133,9 @@ cython_debug/
 .env
 docker-compose.platform.yml
 
+# Vercel
+.vercel
+
 # OS-specific
 .DS_Store
 .DS_Store?

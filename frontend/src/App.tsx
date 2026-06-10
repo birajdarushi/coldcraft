@@ -55,7 +55,9 @@ interface ProfileData {
   tone: string | null
 }
 
-const API = '' // proxied by Vite dev server to http://localhost:8000
+const API = import.meta.env.VITE_API_URL ?? ''
+const MAILPIT_URL = import.meta.env.VITE_MAILPIT_URL ?? 'http://localhost:8025'
+const DOCS_URL = API ? `${API}/docs` : 'http://localhost:8000/docs'
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -350,8 +352,8 @@ function App() {
 
           <div className="ml-auto text-xs text-zinc-400 flex items-center gap-3">
             <span>API: /api/v1</span>
-            <a className="underline" href="http://localhost:8025" target="_blank" rel="noreferrer">Mailpit</a>
-            <a className="underline" href="http://localhost:8000/docs" target="_blank" rel="noreferrer">/docs</a>
+            <a className="underline" href={MAILPIT_URL} target="_blank" rel="noreferrer">Mailpit</a>
+            <a className="underline" href={DOCS_URL} target="_blank" rel="noreferrer">/docs</a>
           </div>
         </div>
       </header>
