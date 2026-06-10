@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from ...db.session import get_session
-from ...db.models import Campaign, EmailEvent, UserConfig, Job, SenderProfile, PolicyConfig, FeatureConfig, ScheduledTask
+from ...db.models import Campaign, EmailEvent, UserConfig, Job, SenderProfile, PolicyConfig, FeatureConfig, ScheduledTask, IntegrationConfig
 
 
 class SQLAlchemyCampaignRepository:
@@ -301,6 +301,39 @@ class SQLAlchemyCampaignRepository:
                 )
             db.commit()
 
+    def get_integrations(self):
+        with get_session() as db:
+            cfg = db.query(IntegrationConfig).first()
+            if cfg:
+                db.expunge(cfg)
+                return {
+                    "apify_token_enc": cfg.apify_token_enc,
+                    "scraper_sources": cfg.scraper_sources or [],
+                }
+            # defaults
+            return {"apify_token_enc": None, "scraper_sources": []}
+
+    def save_integrations(
+        self,
+        apify_token_enc: str | None = None,
+        scraper_sources: list | None = None,
+    ) -> None:
+        with get_session() as db:
+            existing = db.query(IntegrationConfig).first()
+            if existing:
+                if apify_token_enc is not None:
+                    existing.apify_token_enc = apify_token_enc
+                if scraper_sources is not None:
+                    existing.scraper_sources = scraper_sources
+            else:
+                db.add(
+                    IntegrationConfig(
+                        apify_token_enc=apify_token_enc,
+                        scraper_sources=scraper_sources if scraper_sources is not None else [],
+                    )
+                )
+            db.commit()
+
     def mark_user_approved(self, campaign_id: str) -> bool:
         with get_session() as db:
             campaign = db.query(Campaign).filter_by(id=campaign_id).first()
@@ -325,6 +358,55 @@ class SQLAlchemyCampaignRepository:
         with get_session() as db:
             db.query(ScheduledTask).filter_by(campaign_id=campaign_id, status="pending").update({"status": "cancelled"})
             db.commit()
+
+    def get_job_by_url(self, url: str) -> dict | None:
+        with get_session() as db:
+            job = db.query(Job).filter_by(url=url).first()
+            if not job:
+                return None
+            return self._job_to_dict(job)
+
+    def save_job(self, job) -> tuple[str, bool]:
+        with get_session() as db:
+            existing = db.query(Job).filter_by(url=job.url).first()
+            if existing:
+                return existing.id, False
+            row = Job(
+                id=job.id,
+                title=job.title,
+                company=job.company,
+                url=job.url,
+                location=job.location,
+                description=job.description,
+                source=job.source,
+                scraped_at=datetime.now(timezone.utc),
+                match_score=None,
+            )
+            db.add(row)
+            db.commit()
+            return row.id, True
+
+    def list_jobs(self, company: str | None = None, limit: int = 100, offset: int = 0) -> list:
+        with get_session() as db:
+            q = db.query(Job)
+            if company:
+                q = q.filter(Job.company.ilike(f"%{company}%"))
+            q = q.order_by(Job.scraped_at.desc().nullslast()).offset(offset).limit(limit)
+            return [self._job_to_dict(job) for job in q.all()]
+
+    @staticmethod
+    def _job_to_dict(job: Job) -> dict:
+        return {
+            "id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "url": job.url,
+            "location": job.location,
+            "description": job.description,
+            "source": job.source,
+            "match_score": job.match_score,
+            "scraped_at": job.scraped_at.isoformat() if job.scraped_at else None,
+        }
 
     def add_to_do_not_contact(self, email: str) -> None:
         from ...db.models import DoNotContact

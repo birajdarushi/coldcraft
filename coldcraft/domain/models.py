@@ -32,3 +32,14 @@ class ValidationResult:
     violations: list[str]
     warnings: list[str]
     scores: dict
+
+
+@dataclass
+class NormalizedJob:
+    id: str
+    title: str
+    company: str | None
+    url: str
+    location: str | None
+    description: str | None
+    source: str

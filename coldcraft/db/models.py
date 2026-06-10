@@ -83,6 +83,13 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(String(512), default="")
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    url: Mapped[str] = mapped_column(String(2048), unique=True, index=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(64), default="careers_page")
+    scraped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
@@ -110,3 +117,12 @@ class ScheduledTask(Base):
     status: Mapped[str] = mapped_column(String(32), default="pending")
     task_type: Mapped[str] = mapped_column(String(32), default="followup")
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class IntegrationConfig(Base):
+    __tablename__ = "integration_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    apify_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scraper_sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Future integration fields (IMAP, etc.) can be added as additional columns or evolve to a data JSON column.

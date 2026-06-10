@@ -11,8 +11,9 @@ from .ports import (
     TrackerPort,
     MailerTransportPort,
     TimezonePort,
+    JobScraperPort,
 )
-from ..domain.models import CampaignRequest, DraftResult
+from ..domain.models import CampaignRequest, DraftResult, NormalizedJob
 from ..domain.errors import (
     ResearchInsufficientError,
     SenderProfileIncompleteError,
@@ -387,4 +388,46 @@ class HandleReplyUseCase:
                 "referral": "Referred to another contact. New campaign draft prepared — review before sending.",
                 "removal_request": "Added to do-not-contact list. No further outreach permitted.",
             }.get(reply_type, "Review reply and decide next step."),
+        }
+
+
+class ScrapeJobsUseCase:
+    def __init__(self, scraper: JobScraperPort, campaigns: CampaignRepositoryPort):
+        self.scraper = scraper
+        self.campaigns = campaigns
+
+    def execute(self, url: str, source: str | None = None) -> dict:
+        integrations = self.campaigns.get_integrations() or {}
+        resolved_source = source or (
+            (integrations.get("scraper_sources") or ["careers_page"])[0]
+            if integrations.get("scraper_sources")
+            else "careers_page"
+        )
+        scraped_jobs = self.scraper.scrape(url, source=resolved_source)
+        saved: list[dict] = []
+        skipped = 0
+        for job in scraped_jobs:
+            job_id, created = self.campaigns.save_job(job)
+            row = self._serialize_job(job, job_id)
+            if created:
+                saved.append(row)
+            else:
+                skipped += 1
+        return {
+            "scraped": len(saved),
+            "skipped": skipped,
+            "jobs": saved,
+        }
+
+    @staticmethod
+    def _serialize_job(job: NormalizedJob, job_id: str) -> dict:
+        return {
+            "id": job_id,
+            "title": job.title,
+            "company": job.company,
+            "url": job.url,
+            "location": job.location,
+            "description": job.description,
+            "source": job.source,
+            "match_score": None,
         }

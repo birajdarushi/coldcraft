@@ -48,3 +48,7 @@ class SendBlockedError(MailerAgentError):
 
 class SendTimingError(MailerAgentError):
     pass
+
+
+class ScraperError(Exception):
+    pass

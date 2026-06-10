@@ -139,3 +139,47 @@ def serialize_features(features: dict) -> dict:
         "tracking_enabled": features.get("tracking_enabled", True),
         "auto_followups": features.get("auto_followups", True),
     }
+
+
+class IntegrationUpdate(BaseModel):
+    apify_token: str | None = None  # plain on input (for create/update); encrypted server-side; None to keep existing
+    scraper_sources: list | None = None
+
+
+class IntegrationResponse(BaseModel):
+    apify_token: str | None = None  # redacted (*** or None) on output; never the real secret
+    scraper_sources: list
+
+
+class ScrapeRequest(BaseModel):
+    url: str
+    source: str | None = None
+
+
+class JobResponse(BaseModel):
+    id: str
+    title: str
+    company: str | None = None
+    url: str
+    location: str | None = None
+    description: str | None = None
+    source: str
+    match_score: float | None = None
+    scraped_at: str | None = None
+
+
+class ScrapeResponse(BaseModel):
+    scraped: int
+    skipped: int
+    jobs: list[JobResponse]
+
+
+def serialize_integrations(data: dict | None) -> dict:
+    """Return redacted view: never includes raw apify_token or other secrets."""
+    if not data:
+        return {"apify_token": None, "scraper_sources": []}
+    has_apify = bool(data.get("apify_token_enc"))
+    return {
+        "apify_token": "***" if has_apify else None,
+        "scraper_sources": data.get("scraper_sources") or [],
+    }

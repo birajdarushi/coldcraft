@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from ..agent import MailerAgent
@@ -12,6 +13,8 @@ from .routers import (
     get_config_router,
     get_drafts_router,
     get_features_router,
+    get_integrations_router,
+    get_jobs_router,
     get_policies_router,
     get_profile_router,
     health_router,
@@ -32,6 +35,20 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Coldcraft API", version="0.1.0", lifespan=lifespan)
     agent = MailerAgent(config=None)
     campaigns = SQLAlchemyCampaignRepository()
+
+    # CORS for dev UI (Vite on :5173). Keep permissive for localhost dev only.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Primary mounts under /api/v1 (API-first Phase 1)
     app.include_router(health_router, prefix="/api/v1")
@@ -55,6 +72,14 @@ def create_app() -> FastAPI:
     # Features (p1-features-api)
     features_router = get_features_router(campaigns)
     app.include_router(features_router, prefix="/api/v1")
+
+    # Integrations (p2-integration-config)
+    integrations_router = get_integrations_router(campaigns)
+    app.include_router(integrations_router, prefix="/api/v1")
+
+    # Jobs scraper (p2-scraper)
+    jobs_router = get_jobs_router(campaigns)
+    app.include_router(jobs_router, prefix="/api/v1")
 
     # Tracking (p1-tracking-api): public /track/* (no /api/v1 for pixel compat in emails)
     # Mount at root so /track/open etc work directly

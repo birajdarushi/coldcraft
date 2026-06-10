@@ -205,15 +205,15 @@
       "area": "frontend",
       "title": "Minimal React UI shell",
       "user_visible_behavior": "Dashboard, campaign list, preview, config screens — all data from /api/v1 only.",
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "npm run dev serves UI",
         "Config screen uses PUT /api/v1/config and /profile",
         "Dashboard uses GET /api/v1/stats only",
         "No hardcoded campaign data"
       ],
-      "evidence": "",
-      "notes": "Last in Phase 1. API-first gate must pass first."
+      "evidence": "2026-06-10: All 4 verifs executed with live stack. (1) `npm run dev` serves UI at http://localhost:5173 (Vite ready in 120ms, 200 OK + React bootstrap HTML). (2) Config screen exercised: PUT /api/v1/config (distinctive from_name='Coldcraft UI Test', tracking_domain, smtp_pass omitted on update) persisted; immediate GET returned exact redacted fields (no smtp_pass/smtp_pass_enc ever). (3) Dashboard used only GET /api/v1/stats (returned live {sent_today:1, open_rate:0.0, pending_approvals:1} from DB aggregates). (4) Campaign list/detail/preview loaded exclusively from GET /api/v1/campaigns and /campaigns/{id} + /events (real rows with different subjects/statuses/recipients; followup_schedule computed from policies; body preview via iframe srcDoc; approve/send actions wired to real POSTs). Profile screen: PUT /api/v1/profile with skills/proof_points array + GET roundtrip matched exactly. Vite proxy (/api, /track) + backend CORS middleware added. `npm run build` clean (tsc + vite). `PYTHONPATH=. python -m unittest discover -s tests/unit -p 'test_*.py' -q` green (2/2). Grep of frontend/src found zero hardcoded campaign data/mocks (only explanatory 'no hardcoded' comments). Dev server + docker stack healthy throughout.",
+      "notes": "Completes Phase 1. All API surface + operable thin-client shell done. Next phase items remain not_started."
     },
     {
       "id": "p2-integration-config",
@@ -221,13 +221,13 @@
       "area": "api",
       "title": "Integration config API",
       "user_visible_behavior": "GET/PUT /api/v1/integrations configures Apify, scraper sources, IMAP.",
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "PUT apify_token and scraper_sources persists",
         "Secrets redacted on GET"
       ],
-      "evidence": "",
-      "notes": "Phase 2 prerequisite for scraper."
+      "evidence": "2026-06-10 (chained after Phase 1): Rebuilt via `python3 scripts/dev_up.py` + explicit `docker compose ... up --build api`. New IntegrationConfig model + table auto-created via Base.metadata.create_all on container start. GET /api/v1/integrations initially returns {\"apify_token\":null,\"scraper_sources\":[]}. Distinctive PUT {\"apify_token\":\"apify_test_ABC123secretXYZ\", \"scraper_sources\":[\"linkedin\",\"careers_page\",\"greenhouse\"]} returns 200 with redacted response {\"apify_token\":\"***\", \"scraper_sources\":[...]} . Subsequent GET confirms values persisted and apify_token remains \"***\" (real secret never appears). Grep on response body for the distinctive secret string returned no match (\"Good: real secret value not present\"). Partial PUT with only scraper_sources (no apify_token) succeeds and preserves the existing encrypted token (still shows as *** on GET). Unit tests (full discover) green before/after (DummyCampaignRepo extended with get/save_integrations). OpenAPI: /api/v1/integrations path mounted and functional. Followed exact p1-config-api / p1-features-api pattern: dedicated model (with _enc column), port extension, repo upsert + dict return, Pydantic Update/Response + serialize redactor, router factory that encrypts via new encrypt_secret helper (reusing GTM_SMTP_ENCRYPTION_KEY), wiring in app.py + __init__.py. All verifs executed live against rebuilt stack.",
+      "notes": "Phase 2 prerequisite for scraper complete. Secrets stored encrypted; GET always redacted. Next: p2-scraper."
     },
     {
       "id": "p2-scraper",
@@ -235,14 +235,14 @@
       "area": "scraper",
       "title": "Job scraper API",
       "user_visible_behavior": "POST /api/v1/jobs/scrape triggers scrape; jobs appear in GET /api/v1/jobs.",
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "POST /api/v1/jobs/scrape with career page URL",
         "GET /api/v1/jobs returns normalized job",
         "Duplicate skipped on second scrape"
       ],
-      "evidence": "",
-      "notes": ""
+      "evidence": "2026-06-10: Rebuilt API via docker compose up --build api. POST /api/v1/jobs/scrape {\"url\":\"https://boards.greenhouse.io/gitlab\",\"source\":\"careers_page\"} returned scraped=142 with normalized jobs (id, title, company, url, location, description, source). GET /api/v1/jobs?limit=2 returned persisted rows with scraped_at timestamps and full normalized fields. Second identical POST returned scraped=0, skipped=142 (duplicate URLs skipped by unique url constraint). OpenAPI paths /api/v1/jobs/scrape and /api/v1/jobs present. Unit tests: 7/7 green (test_scraper.py + test_use_cases.py). CareersPageScraper supports Greenhouse/Lever APIs + JSON-LD/generic HTML fallback; ScrapeJobsUseCase dedups via repo.save_job url check.",
+      "notes": "Greenhouse/Lever public APIs used for reliable career-page scraping. Apify path deferred until linkedin source needed."
     },
     {
       "id": "p2-intel-report",

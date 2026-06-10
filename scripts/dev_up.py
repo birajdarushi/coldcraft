@@ -78,6 +78,9 @@ def main() -> int:
     write_compose_override(ROOT / "docker-compose.platform.yml", host)
 
     print("Starting services…", flush=True)
+    print("  API + OpenAPI:  http://localhost:8000/docs", flush=True)
+    print("  Mailpit (mail): http://localhost:8025", flush=True)
+    print("  UI (Vite dev):  http://localhost:5173", flush=True)
     return run_compose(extra)
 
 

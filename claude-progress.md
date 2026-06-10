@@ -9,8 +9,8 @@
 | **Standard verification** | `PYTHONPATH=. python3 -m unittest discover -s tests/unit -p 'test_*.py' -q` |
 | **Current phase** | 0 → 1 (foundation done, operable loop next) |
 | **Architectural principles** | API-first · Configurable · Constitution-bound (see `PLAN.md`) |
-| **Highest priority unfinished feature** | `p1-frontend-shell` (see `feature_list.json`) |
-| **Current blocker** | None — p1-followup-visibility passing (chained); followup in detail + tasks |
+| **Highest priority unfinished feature** | p2-intel-report (p2-scraper just passed) |
+| **Current blocker** | None |
 
 ### Verified working (with evidence)
 
@@ -94,3 +94,38 @@
 | **Commits** | (pending) |
 | **Known risks** | validators.py still uses direct module policies (self-review in use case now uses overrides; daily limit verif covered). |
 | **Next best action** | p1-features-api (feature flags like tracking_enabled). |
+
+### Session 2026-06-10 — p1-frontend-shell (Minimal React UI shell)
+| Field | Value |
+|-------|-------|
+| **Goal** | Thin React + Vite + TS shell: Dashboard (stats only), Campaigns list + detail/preview, Config + Profile screens — 100% data from /api/v1, no hardcodes. |
+| **Completed** | Vite React TS scaffold in `frontend/`; Tailwind v3; Vite proxy for /api + /track; backend CORS middleware; full shell in App.tsx (tab nav, live fetches, forms, iframe preview, approve/send actions, loading/error states); types matching schemas; build clean. |
+| **Verification run** | Backend stack already up (health 200). `npm run dev` (background) served 200 + full React HTML at :5173. `npm run build` (tsc + vite) clean twice. Dashboard exercised live GET /api/v1/stats only. Config: PUT (redacted pass handling) + GET roundtrip with distinctive values. Profile: PUT arrays + GET. Campaigns list + detail from real /campaigns endpoints (multiple rows, events, followup_schedule). Full unit tests green. Grep: no hardcoded data. Curls for PUT/GET matched UI code paths exactly. |
+| **Evidence recorded** | See feature_list.json (p1-frontend-shell now passing). All 4 verifs + extra (proxy, CORS, actions, live DB data, build, unittests). Phase 1 complete. |
+| **Commits** | (pending) |
+| **Known risks** | None. Dev server + docker stack independent (user runs `npm run dev` in frontend/ alongside `python3 scripts/dev_up.py`). Drafts still 500 without ANTHROPIC key (pre-existing, unrelated to shell). |
+| **Next best action** | Phase 2 work (p2-integration-config or p2-scraper). Update handoff + clean-state. |
+
+### Session 2026-06-10 — p2-integration-config (Integration secrets + sources via API)
+
+| Field | Value |
+|-------|-------|
+| **Goal** | Implement GET/PUT /api/v1/integrations; encrypt secrets server-side (apify_token etc); redacted GET; prerequisite for scraper. |
+| **Completed** | New IntegrationConfig model (apify_token_enc + scraper_sources JSON); extended port + repo (get/save with upsert, return dict with _enc); IntegrationUpdate/Response + serialize_integrations (redacts to "***"); new get_integrations_router (encrypts on PUT via shared secret helper); mounted under /api/v1 (tag integrations); dummy + wiring + secrets.py extended with encrypt_secret; full rebuilds. |
+| **Verification run** | `./init.sh`; unit tests (green); `python3 scripts/dev_up.py`; `docker compose ... up --build api`; distinctive PUT with real secret token + sources; multiple GETs; grep for secret string in responses; partial update test; OpenAPI path inspect; re-ran unittests. |
+| **Evidence recorded** | See feature_list.json (p2-integration-config now passing). Both verifs + extras (redaction confirmed by absence of distinctive secret in body, persistence across partial PUTs, table auto-created, unit tests, stack rebuilt). Followed p1 config/features pattern exactly. |
+| **Commits** | (pending) |
+| **Known risks** | None new. Encryption key is dev bootstrap (same as SMTP); real Phase 2 scraper will decrypt when it reads the config. No decrypt helper added yet (not required for this feature's verifs). |
+| **Next best action** | Mark this passing (done), update handoff. Start p2-scraper or p2-intel-report per priority in feature_list. Run clean-state-checklist. |
+
+### Session 2026-06-10 — p2-scraper (Job scraper API)
+
+| Field | Value |
+|-------|-------|
+| **Goal** | POST /api/v1/jobs/scrape triggers scrape; GET /api/v1/jobs lists normalized jobs; duplicates skipped |
+| **Completed** | Extended Job model (title, company, url unique, location, description, source, scraped_at) + lightweight migration in init_db; CareersPageScraper (Greenhouse/Lever/JSON-LD/generic); ScrapeJobsUseCase + JobScraperPort; repo save_job dedup by url; jobs router mounted; schemas; unit tests |
+| **Verification run** | `./init.sh` (7 tests green); docker compose rebuild api; POST scrape GitLab Greenhouse board (142 jobs); GET /jobs normalized rows; second scrape skipped=142; OpenAPI paths confirmed |
+| **Evidence recorded** | See feature_list.json (p2-scraper now passing). All 3 verifs + unit tests + OpenAPI. |
+| **Commits** | (pending) |
+| **Known risks** | Greenhouse HTML entities in description field (cosmetic). Apify/linkedin source not wired yet. |
+| **Next best action** | p2-intel-report. Update handoff + clean-state at session end. |

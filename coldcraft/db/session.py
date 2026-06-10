@@ -42,6 +42,37 @@ def get_session():
         session.close()
 
 
+def _migrate_jobs_table(engine) -> None:
+    """Add normalized job columns when upgrading an existing jobs table."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "jobs" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("jobs")}
+    additions = {
+        "title": "VARCHAR(512) DEFAULT '' NOT NULL",
+        "company": "VARCHAR(255)",
+        "url": "VARCHAR(2048)",
+        "location": "VARCHAR(255)",
+        "description": "TEXT",
+        "source": "VARCHAR(64) DEFAULT 'careers_page' NOT NULL",
+        "scraped_at": "TIMESTAMP WITH TIME ZONE",
+    }
+    with engine.begin() as conn:
+        for col, ddl in additions.items():
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE jobs ADD COLUMN {col} {ddl}"))
+        if "url" in additions and "url" not in existing:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_jobs_url ON jobs (url) "
+                    "WHERE url IS NOT NULL"
+                )
+            )
+
+
 def init_db() -> None:
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
+    _migrate_jobs_table(engine)

@@ -17,3 +17,27 @@ def encrypt_smtp_password(plain_password: str) -> str:
         )
     f = Fernet(key.encode())
     return f.encrypt(plain_password.encode()).decode()
+
+
+def encrypt_secret(plain: str) -> str:
+    """Encrypt a general secret (apify token, imap creds, etc) using the same bootstrap key."""
+    key = get_smtp_encryption_key()
+    if not key:
+        raise RuntimeError(
+            "GTM_SMTP_ENCRYPTION_KEY not set. "
+            "Required for encrypting integration secrets on write."
+        )
+    f = Fernet(key.encode())
+    return f.encrypt(plain.encode()).decode()
+
+
+def decrypt_secret(enc: str) -> str:
+    """Decrypt a secret stored via encrypt_secret."""
+    key = get_smtp_encryption_key()
+    if not key:
+        raise RuntimeError(
+            "GTM_SMTP_ENCRYPTION_KEY not set. "
+            "Required for decrypting integration secrets."
+        )
+    f = Fernet(key.encode())
+    return f.decrypt(enc.encode()).decode()

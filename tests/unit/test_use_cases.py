@@ -81,6 +81,21 @@ class DummyCampaignRepo:
     def save_features(self, tracking_enabled=None, auto_followups=None):
         pass
 
+    def get_integrations(self):
+        return {"apify_token": None, "scraper_sources": []}
+
+    def save_integrations(self, apify_token_enc=None, scraper_sources=None):
+        pass
+
+    def get_job_by_url(self, url):
+        return None
+
+    def save_job(self, job):
+        return job.id, True
+
+    def list_jobs(self, company=None, limit=100, offset=0):
+        return []
+
 
 class CreateDraftUseCaseTests(unittest.TestCase):
     def test_blocks_do_not_contact(self):

@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Coldcraft minimal shell base */
+:root {
+  --accent: #111827;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-700;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+.dark body {
+  @apply bg-zinc-950 text-zinc-300;
+}
+
+.shell {
+  min-height: 100vh;
+}
+
+.nav {
+  @apply border-b bg-white;
+}
+
+.nav-inner {
+  @apply max-w-6xl mx-auto px-6 h-14 flex items-center gap-6;
+}
+
+.tab {
+  @apply px-3 py-1.5 text-sm font-medium rounded-md transition-colors;
+}
+
+.tab-active {
+  @apply bg-zinc-900 text-white;
+}
+
+.tab-inactive {
+  @apply hover:bg-zinc-100 text-zinc-600;
+}
+
+.card {
+  @apply bg-white border border-zinc-200 rounded-xl p-5 shadow-sm;
+}
+
+.btn {
+  @apply px-3 py-1.5 text-sm font-medium rounded-md border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100 transition-colors disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply bg-zinc-900 text-white border-zinc-900 hover:bg-black;
+}
+
+.input {
+  @apply w-full px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:border-zinc-400;
+}
+
+.label {
+  @apply block text-xs font-medium text-zinc-500 mb-1;
+}
+
+.table {
+  @apply w-full text-sm;
+}
+
+.table th {
+  @apply text-left font-medium text-zinc-500 pb-2 border-b;
+}
+
+.table td {
+  @apply py-2 border-b border-zinc-100 align-top;
+}
+
+.status {
+  @apply inline-block px-2 py-0.5 text-xs rounded-full border;
+}
+
+.status-qa_passed, .status-draft { @apply bg-amber-50 text-amber-700 border-amber-200; }
+.status-user_approved { @apply bg-blue-50 text-blue-700 border-blue-200; }
+.status-sent { @apply bg-emerald-50 text-emerald-700 border-emerald-200; }
+.status-opened, .status-replied { @apply bg-violet-50 text-violet-700 border-violet-200; }
+
+.section-title {
+  @apply text-lg font-semibold text-zinc-900 mb-3;
+}
+
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.preview-frame {
+  @apply w-full border border-zinc-200 rounded-lg bg-white overflow-hidden;
+  min-height: 320px;
+}
