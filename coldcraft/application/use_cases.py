@@ -12,6 +12,7 @@ from .ports import (
     MailerTransportPort,
     TimezonePort,
     JobScraperPort,
+    IntelResearchPort,
 )
 from ..domain.models import CampaignRequest, DraftResult, NormalizedJob
 from ..domain.errors import (
@@ -434,3 +435,47 @@ class ScrapeJobsUseCase:
             "source": job.source,
             "match_score": None,
         }
+
+
+DEFAULT_INTEL_CACHE_DAYS = 14
+
+
+class GenerateIntelReportUseCase:
+    def __init__(self, research: IntelResearchPort, campaigns: CampaignRepositoryPort):
+        self.research = research
+        self.campaigns = campaigns
+
+    def execute(self, company: str, *, force_refresh: bool = False, cache_days: int = DEFAULT_INTEL_CACHE_DAYS) -> dict:
+        slug = company.strip().lower()
+        if not slug:
+            raise ValueError("company is required")
+
+        if not force_refresh:
+            cached = self.campaigns.get_intel_report(slug)
+            if cached and self._is_fresh(cached["generated_at"], cache_days):
+                return {**cached, "cached": True}
+
+        sections = self.research.generate(slug)
+        now = datetime.now(timezone.utc)
+        self.campaigns.save_intel_report(slug, sections, now)
+        return {
+            "company": slug,
+            "sections": sections,
+            "generated_at": now.isoformat(),
+            "cached": False,
+        }
+
+    def get_cached(self, company: str) -> dict | None:
+        slug = company.strip().lower()
+        report = self.campaigns.get_intel_report(slug)
+        if not report:
+            return None
+        return {**report, "cached": True}
+
+    @staticmethod
+    def _is_fresh(generated_at: str, cache_days: int) -> bool:
+        dt = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - dt
+        return age.days < cache_days

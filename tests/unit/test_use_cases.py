@@ -96,6 +96,12 @@ class DummyCampaignRepo:
     def list_jobs(self, company=None, limit=100, offset=0):
         return []
 
+    def get_intel_report(self, company):
+        return None
+
+    def save_intel_report(self, company, sections, generated_at):
+        pass
+
 
 class CreateDraftUseCaseTests(unittest.TestCase):
     def test_blocks_do_not_contact(self):

@@ -14,6 +14,7 @@ from .routers import (
     get_drafts_router,
     get_features_router,
     get_integrations_router,
+    get_intel_router,
     get_jobs_router,
     get_policies_router,
     get_profile_router,
@@ -80,6 +81,10 @@ def create_app() -> FastAPI:
     # Jobs scraper (p2-scraper)
     jobs_router = get_jobs_router(campaigns)
     app.include_router(jobs_router, prefix="/api/v1")
+
+    # Intel reports (p2-intel-report)
+    intel_router = get_intel_router(campaigns)
+    app.include_router(intel_router, prefix="/api/v1")
 
     # Tracking (p1-tracking-api): public /track/* (no /api/v1 for pixel compat in emails)
     tracking_router = get_tracking_router(campaigns)

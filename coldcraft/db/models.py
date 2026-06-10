@@ -126,3 +126,11 @@ class IntegrationConfig(Base):
     apify_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     scraper_sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # Future integration fields (IMAP, etc.) can be added as additional columns or evolve to a data JSON column.
+
+
+class IntelReport(Base):
+    __tablename__ = "intel_reports"
+
+    company: Mapped[str] = mapped_column(String(255), primary_key=True)
+    sections: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

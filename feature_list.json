@@ -250,14 +250,14 @@
       "area": "intel",
       "title": "Target company intel report API",
       "user_visible_behavior": "POST /api/v1/intel/reports generates 7-section readiness report.",
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "POST /api/v1/intel/reports body company=37signals",
         "All 7 sections present with sources or sample caveat",
         "GET /api/v1/intel/reports/37signals returns cached report"
       ],
-      "evidence": "",
-      "notes": ""
+      "evidence": "2026-06-10: Rebuilt API via docker compose up --build api. POST /api/v1/intel/reports {\"company\":\"37signals\"} returned company=37signals, cached=false, 7 sections (company_fundamentals, engineering_culture, hiring_signals, recent_activity, recipient_intelligence, outreach_readiness, sources_and_limitations) each with title/content and sample caveat where applicable. GET /api/v1/intel/reports/37signals returned cached=true with same 7 sections. OpenAPI paths /api/v1/intel/reports POST and /api/v1/intel/reports/{company} GET present. Unit tests: 18/18 green (test_intel.py + existing). SampleIntelProvider used for dev; live research deferred.",
+      "notes": "Sample provider for 37signals + generic placeholder. Cache TTL 14 days default. intel_cache_days feature flag deferred."
     },
     {
       "id": "p2-pm-workflow",

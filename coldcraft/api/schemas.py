@@ -179,6 +179,25 @@ class ScrapeResponse(BaseModel):
     jobs: list[JobResponse]
 
 
+class IntelSection(BaseModel):
+    title: str
+    content: str
+    sources: list[str] = []
+    caveat: str | None = None
+
+
+class IntelReportRequest(BaseModel):
+    company: str
+    force_refresh: bool = False
+
+
+class IntelReportResponse(BaseModel):
+    company: str
+    sections: dict[str, IntelSection]
+    generated_at: str
+    cached: bool
+
+
 def serialize_integrations(data: dict | None) -> dict:
     """Return redacted view: never includes raw apify_token or other secrets."""
     if not data:

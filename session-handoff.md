@@ -63,7 +63,12 @@ Phase 1 (API platform + operable loop via thin UI) is now complete. All data/con
 - Verified live: GitLab Greenhouse board → 142 jobs first pass, 0 scraped / 142 skipped on second pass.
 - Unit tests: 7/7 green including test_scraper.py.
 
-**Next (Phase 2):** p2-intel-report per priority in feature_list.json. Only set one feature to `in_progress` at a time.
+**p2-intel-report is now `passing`** (2026-06-10):
+- POST /api/v1/intel/reports generates 7-section readiness report (sample provider for 37signals).
+- GET /api/v1/intel/reports/{company} returns cached report (14-day TTL).
+- Verified live + 18 unit tests green.
+
+**Next (Phase 2):** p2-pm-workflow per priority in feature_list.json. Only set one feature to `in_progress` at a time.
 
 All Phase 1 work (API surface + thin UI shell) is API-driven and verified. UI is deliberately separate process for now.
 

@@ -9,7 +9,7 @@
 | **Standard verification** | `PYTHONPATH=. python3 -m unittest discover -s tests/unit -p 'test_*.py' -q` |
 | **Current phase** | 0 → 1 (foundation done, operable loop next) |
 | **Architectural principles** | API-first · Configurable · Constitution-bound (see `PLAN.md`) |
-| **Highest priority unfinished feature** | p2-intel-report (p2-scraper just passed) |
+| **Highest priority unfinished feature** | p2-pm-workflow (p2-intel-report just passed) |
 | **Current blocker** | None |
 
 ### Verified working (with evidence)

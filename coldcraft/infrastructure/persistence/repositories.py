@@ -413,6 +413,33 @@ class SQLAlchemyCampaignRepository:
             "scraped_at": job.scraped_at.isoformat() if job.scraped_at else None,
         }
 
+    def get_intel_report(self, company: str) -> dict | None:
+        from ...db.models import IntelReport
+
+        slug = company.strip().lower()
+        with get_session() as db:
+            row = db.query(IntelReport).filter_by(company=slug).first()
+            if not row:
+                return None
+            return {
+                "company": row.company,
+                "sections": row.sections,
+                "generated_at": row.generated_at.isoformat(),
+            }
+
+    def save_intel_report(self, company: str, sections: dict, generated_at) -> None:
+        from ...db.models import IntelReport
+
+        slug = company.strip().lower()
+        with get_session() as db:
+            existing = db.query(IntelReport).filter_by(company=slug).first()
+            if existing:
+                existing.sections = sections
+                existing.generated_at = generated_at
+            else:
+                db.add(IntelReport(company=slug, sections=sections, generated_at=generated_at))
+            db.commit()
+
     def add_to_do_not_contact(self, email: str) -> None:
         from ...db.models import DoNotContact
         with get_session() as db:
