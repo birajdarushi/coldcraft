@@ -38,13 +38,13 @@ If true, do NOT claim fit. Frame as growth trajectory: "I'm building toward this
 
 OUTPUT FORMAT
 Return a JSON object with exactly these fields:
-{
+{{
   "subject": "...",
   "body_text": "...",
   "body_html": "...",
   "personalization_signals": ["signal1", "signal2"],
   "word_count": 0
-}
+}}
 No preamble. No explanation. JSON only.
 """.strip()
 

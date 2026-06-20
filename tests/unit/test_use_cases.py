@@ -10,6 +10,9 @@ class DummyDrafter:
         return [{"text": "Hook", "specificity": 5, "surprise_factor": 4, "relevance": 5}]
 
     def draft(self, hook, company_intel, sender_profile, recipient_name):
+        return self.draft_oneshot(company_intel, sender_profile, recipient_name)
+
+    def draft_oneshot(self, company_intel, sender_profile, recipient_name):
         return DraftResult(
             campaign_id="",
             subject="Solid subject",
@@ -18,7 +21,7 @@ class DummyDrafter:
             word_count=18,
             personalization_signals=["x", "y"],
             hook_candidates=[],
-            selected_hook=hook,
+            selected_hook={"text": "Hook", "signal_used": None},
         )
 
     def revise(self, draft, violations):

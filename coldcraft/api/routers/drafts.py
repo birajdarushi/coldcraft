@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from ...domain.errors import MailerAgentError
 from ...domain.models import CampaignRequest
+from ...llm import LLMError
 from ..schemas import DraftRequest, serialize_draft
 
 
@@ -29,6 +30,8 @@ def get_drafts_router(agent, campaigns_repo=None) -> APIRouter:
             )
             draft = agent.run(domain_req)
             return serialize_draft(draft)
+        except LLMError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         except MailerAgentError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 

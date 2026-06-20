@@ -1,9 +1,8 @@
 """
-Drafter — generates cold email drafts via Claude API.
+Drafter — generates cold email drafts via the Gemini API.
 """
 
-import anthropic
-
+from . import llm
 from .domain.models import DraftResult
 from .prompts.registry import (
     DRAFTER_SYSTEM_PROMPT,
@@ -11,9 +10,6 @@ from .prompts.registry import (
     REVISION_SYSTEM_PROMPT,
     FOLLOWUP_SYSTEM_PROMPT,
 )
-
-ANTHROPIC_CLIENT = anthropic.Anthropic()
-MODEL = "claude-sonnet-4-20250514"
 
 
 class Drafter:
@@ -27,15 +23,7 @@ class Drafter:
             f"Sender: {sender_profile.get('name')}, {sender_profile.get('current_status')}\n"
             f"Generate {count} hook candidates."
         )
-        response = ANTHROPIC_CLIENT.messages.create(
-            model=MODEL,
-            max_tokens=800,
-            system=HOOK_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        import json
-
-        return json.loads(response.content[0].text)
+        return llm.generate_json(system=HOOK_SYSTEM_PROMPT, prompt=prompt, max_tokens=800)
 
     def draft(self, hook: dict, company_intel: dict, sender_profile: dict, recipient_name: str) -> DraftResult:
         system = DRAFTER_SYSTEM_PROMPT.format(
@@ -48,15 +36,7 @@ class Drafter:
             f"Signal this hook references: {hook.get('signal_used')}\n\n"
             "Now write the full email using this hook."
         )
-        import json
-
-        response = ANTHROPIC_CLIENT.messages.create(
-            model=MODEL,
-            max_tokens=1000,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        data = json.loads(response.content[0].text)
+        data = llm.generate_json(system=system, prompt=prompt, max_tokens=1000)
         return DraftResult(
             campaign_id="",
             subject=data["subject"],
@@ -66,6 +46,31 @@ class Drafter:
             personalization_signals=data["personalization_signals"],
             hook_candidates=[],
             selected_hook=hook,
+        )
+
+    def draft_oneshot(self, company_intel: dict, sender_profile: dict, recipient_name: str) -> DraftResult:
+        """Brainstorm the best hook AND write the email in a single Gemini call
+        (instead of generate_hooks + draft). Halves the base call count."""
+        system = DRAFTER_SYSTEM_PROMPT.format(
+            sender_block=self._build_sender_block(sender_profile),
+            company_block=self._build_company_block(company_intel, recipient_name),
+            low_match_mode=str(company_intel.get("low_match_mode", False)),
+        )
+        prompt = (
+            "First, internally brainstorm the single strongest, most specific opening hook "
+            "from the available company signals (specificity > surprise > relevance). "
+            "Then write the full email built on that hook. Output only the final email JSON."
+        )
+        data = llm.generate_json(system=system, prompt=prompt, max_tokens=1000)
+        return DraftResult(
+            campaign_id="",
+            subject=data["subject"],
+            body_html=data["body_html"],
+            body_text=data["body_text"],
+            word_count=data["word_count"],
+            personalization_signals=data["personalization_signals"],
+            hook_candidates=[],
+            selected_hook={"text": "(model-selected)", "signal_used": None},
         )
 
     def revise(self, draft: DraftResult, violations: list[str]) -> DraftResult:
@@ -78,21 +83,11 @@ class Drafter:
             "personalization_signals": draft.personalization_signals,
             "word_count": draft.word_count,
         }
-        response = ANTHROPIC_CLIENT.messages.create(
-            model=MODEL,
-            max_tokens=1000,
-            system=REVISION_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Current draft:\n{json.dumps(current, indent=2)}\n\n"
-                        f"Violations to fix:\n" + "\n".join(f"- {v}" for v in violations)
-                    ),
-                }
-            ],
+        prompt = (
+            f"Current draft:\n{json.dumps(current, indent=2)}\n\n"
+            f"Violations to fix:\n" + "\n".join(f"- {v}" for v in violations)
         )
-        data = json.loads(response.content[0].text)
+        data = llm.generate_json(system=REVISION_SYSTEM_PROMPT, prompt=prompt, max_tokens=1000)
         draft.subject = data["subject"]
         draft.body_text = data["body_text"]
         draft.body_html = data["body_html"]
@@ -101,8 +96,6 @@ class Drafter:
         return draft
 
     def draft_followup(self, campaign: dict, followup_number: int, day_offset: int) -> dict:
-        import json
-
         system = FOLLOWUP_SYSTEM_PROMPT.format(followup_number=followup_number, day_offset=day_offset)
         prompt = (
             f"Original email:\nSubject: {campaign['subject']}\n{campaign['body_text']}\n\n"
@@ -110,13 +103,7 @@ class Drafter:
             f"Recipient: {campaign.get('recipient_name')}\n"
             f"New signal to add (if any): {campaign.get('new_signal', 'none')}"
         )
-        response = ANTHROPIC_CLIENT.messages.create(
-            model=MODEL,
-            max_tokens=500,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return json.loads(response.content[0].text)
+        return llm.generate_json(system=system, prompt=prompt, max_tokens=500)
 
     def _build_sender_block(self, profile: dict) -> str:
         proof_points = "\n".join(

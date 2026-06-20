@@ -89,15 +89,9 @@ class CreateDraftUseCase:
         self._research_check(request)
         self._preflight_checks(request)
 
-        hooks = self.drafter.generate_hooks(
-            company_intel=request.company_intel,
-            sender_profile=request.sender_profile,
-            count=3,
-        )
-        selected_hook = self._score_and_select_hook(hooks)
-
-        draft = self.drafter.draft(
-            hook=selected_hook,
+        # Single Gemini call: the model brainstorms its own hook and writes the
+        # email (was 2 calls: generate_hooks + draft). QA gate below is rule-based.
+        draft = self.drafter.draft_oneshot(
             company_intel=request.company_intel,
             sender_profile=request.sender_profile,
             recipient_name=request.recipient_name,

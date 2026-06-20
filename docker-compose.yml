@@ -31,7 +31,8 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://gtm:gtm@db:5432/gtm
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
       GTM_SMTP_ENCRYPTION_KEY: ${GTM_SMTP_ENCRYPTION_KEY:-}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"

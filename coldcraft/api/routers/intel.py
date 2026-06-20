@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException
 
 from ...application.use_cases import GenerateIntelReportUseCase
-from ...infrastructure.intel import SampleIntelProvider
+from ...infrastructure.intel import GeminiIntelProvider
 from ..schemas import IntelReportRequest, IntelReportResponse
 
 
 def get_intel_router(campaigns_repo) -> APIRouter:
     router = APIRouter(prefix="/intel", tags=["intel"])
-    provider = SampleIntelProvider()
+    provider = GeminiIntelProvider()  # falls back to sample data when no Gemini key
     use_case = GenerateIntelReportUseCase(research=provider, campaigns=campaigns_repo)
 
     @router.post("/reports", response_model=IntelReportResponse)
