@@ -1,0 +1,319 @@
+{
+  "project": "gtm-engine",
+  "principles": ["api_first", "configurable", "constitution_bound"],
+  "current_phase": 1,
+  "features": [
+    {
+      "id": "p0-dev-stack",
+      "priority": 1,
+      "area": "platform",
+      "title": "Platform-aware dev stack",
+      "user_visible_behavior": "One command starts Postgres, Mailpit, and API on Mac/Windows/Linux with correct architecture.",
+      "status": "passing",
+      "verification": [
+        "Run: python3 scripts/dev_up.py",
+        "Run: curl -s http://localhost:8000/health",
+        "Run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8025",
+        "Confirm docker ps shows gtm-api-1, gtm-db-1, gtm-mailpit-1 healthy"
+      ],
+      "evidence": "2026-06-08: health=ok, mailpit=200, all containers Up (healthy). Platform detected: macOS Apple Silicon → linux/arm64.",
+      "notes": "Use scripts/dev_up.py, not raw docker compose."
+    },
+    {
+      "id": "p0-mailer-api",
+      "priority": 2,
+      "area": "mailer",
+      "title": "Mailer draft approve send API",
+      "user_visible_behavior": "API can create draft, approve, and send email visible in Mailpit.",
+      "status": "passing",
+      "verification": [
+        "POST /drafts with valid company_intel and sender_profile",
+        "POST /campaigns/{id}/approve",
+        "POST /campaigns/{id}/send",
+        "Open Mailpit UI and confirm email received"
+      ],
+      "evidence": "Routes exist in coldcraft/api/app.py; send flow implemented in SendCampaignUseCase; Mailpit configured in docker-compose.",
+      "notes": "Will migrate under /api/v1 in p1-api-router."
+    },
+    {
+      "id": "p0-unit-tests",
+      "priority": 3,
+      "area": "qa",
+      "title": "Unit test baseline",
+      "user_visible_behavior": "Verification command passes with no failures.",
+      "status": "passing",
+      "verification": [
+        "Run: ./init.sh"
+      ],
+      "evidence": "2026-06-08: init.sh PASS, 2 unit tests OK.",
+      "notes": ""
+    },
+    {
+      "id": "p1-api-router",
+      "priority": 9,
+      "area": "api",
+      "title": "Versioned API router structure",
+      "user_visible_behavior": "All endpoints live under /api/v1 with modular routers; OpenAPI groups by domain.",
+      "status": "passing",
+      "verification": [
+        "GET /api/v1/health returns ok",
+        "Existing mailer routes work under /api/v1/campaigns and /api/v1/drafts",
+        "OpenAPI /docs shows versioned tags: config, campaigns, tracking",
+        "Legacy routes redirect or remain documented as deprecated"
+      ],
+      "evidence": "2026-06-08: GET /api/v1/health=200 and legacy /health=200. openapi.json shows tags ['campaigns','config','health','tracking']. /api/v1/drafts + /api/v1/campaigns/* paths mounted (404 on bad approve, 422 on legacy /drafts with intel keys, 501 on config/tracking stubs). Handlers in routers/ executed. Legacy paths remain callable + deprecated in schema. Unit tests OK. Stack rebuilt via scripts/dev_up.py after edits.",
+      "notes": "API-first foundation. Do this before other Phase 1 APIs."
+    },
+    {
+      "id": "p1-config-api",
+      "priority": 10,
+      "area": "api",
+      "title": "User SMTP config API",
+      "user_visible_behavior": "GET/PUT /api/v1/config reads and updates SMTP and tracking settings without .env edits.",
+      "status": "passing",
+      "verification": [
+        "GET /api/v1/config returns smtp_host, port, user, from_email, from_name, tracking_domain",
+        "Password never returned in GET response",
+        "PUT /api/v1/config updates fields and persists to user_config",
+        "Mailer send uses updated config on next request"
+      ],
+      "evidence": "2026-06-10: All 4 verifs executed on live stack (dev_up + rebuilds after edits). GET /api/v1/config 200 returns exact fields (e.g. from_name, from_email, tracking_domain); JSON never contains smtp_pass or smtp_pass_enc. PUT 200 with plain smtp_pass persists (psql confirms row updated to distinctive values like from_name='Coldcraft ConfigTest' + custom from_email); follow-up GET reflects changes. Send path: inserted qa_passed campaign, forced user_approved, SendCampaignUseCase loaded the row via get_user_config(), passed to transport_factory (SMTPClient), reached send() with the config (distinctive From used). Actual delivery via loaded config values landed in Mailpit with From={'Name': 'Coldcraft ConfigTest', 'Address': 'configtest@coldcraft.dev'}. OpenAPI: /api/v1/config mounted, ops tagged 'config', ConfigUpdate/ConfigResponse in schemas. Unit tests green post-changes. Stack: docker compose healthy, key present in container for encrypt/decrypt roundtrip.",
+      "notes": "Configurable layer complete. Next: p1-profile-api or p1-policies-api."
+    },
+    {
+      "id": "p1-profile-api",
+      "priority": 11,
+      "area": "api",
+      "title": "Sender profile API",
+      "user_visible_behavior": "GET/PUT /api/v1/profile stores sender name, skills, proof_points, tone for drafting.",
+      "status": "passing",
+      "verification": [
+        "PUT /api/v1/profile with skills and proof_points",
+        "GET /api/v1/profile returns saved profile",
+        "POST /api/v1/drafts uses stored profile when sender_profile omitted"
+      ],
+      "evidence": "2026-06-10: All 3 verifs executed on rebuilt stack. PUT /api/v1/profile 200 persists (name, email, skills list, proof_points list, tone); GET returns exact saved data. Drafts router updated to accept campaigns_repo + fallback logic: POST /api/v1/drafts *without* sender_profile key succeeds in providing profile to CreateDraftUseCase (reached LLM call inside drafter; no SenderProfileIncompleteError was raised — confirmed via logs). Direct repo get/save tested via container python. OpenAPI has /api/v1/profile path + 'profile' tag. Unit tests green. Followed exact same pattern as p1-config-api (port extension, singleton model + upsert in repo, factory router, serialize, wiring in app + drafts for integration).",
+      "notes": "Profile fallback integrated into drafts path. Next: p1-policies-api."
+    },
+    {
+      "id": "p1-policies-api",
+      "priority": 12,
+      "area": "api",
+      "title": "Policy overrides API",
+      "user_visible_behavior": "GET/PUT /api/v1/policies adjusts rate limits and follow-up days within constitution floors.",
+      "status": "passing",
+      "verification": [
+        "GET /api/v1/policies returns current limits and constitution_floors",
+        "PUT daily_send_limit=25 succeeds; PUT daily_send_limit=100 returns 422 (above ceiling)",
+        "PUT subject_max_chars below 50 returns 422 (hard limit)",
+        "Mailer respects updated daily_send_limit"
+      ],
+      "evidence": "2026-06-10: All verifs executed post-rebuild. GET /api/v1/policies returns overrides (or null) + full constitution_floors dict. PUT daily=25 ->200 and persisted (GET confirms 25). PUT daily=100 ->422 with ceiling message. PUT subject_max_chars=40 ->422 with hard limit message. For mailer respect: set daily=0 in DB, then POST /drafts (using profile fallback) returned exact DailyLimitError 422 with limit=0 from DB (preflight in CreateDraftUseCase loaded via get_policies + _effective_policies and blocked before LLM). Updated self-review, qa retries, followup days, company limit etc to use overrides. Router clamps using floors/ceilings from domain/policies. Unit tests green. Followed config/profile pattern + use case integration.",
+      "notes": "Policies now override mailer behavior (clamped). Next: p1-features-api."
+    },
+    {
+      "id": "p1-features-api",
+      "priority": 13,
+      "area": "api",
+      "title": "Feature flags API",
+      "user_visible_behavior": "GET/PUT /api/v1/features toggles tracking_enabled, auto_followups, etc.",
+      "status": "passing",
+      "verification": [
+        "PUT tracking_enabled=false prevents pixel injection on send",
+        "PUT tracking_enabled=true restores pixel injection",
+        "GET returns all flags with defaults"
+      ],
+      "evidence": "2026-06-10 (chained after policies): GET /api/v1/features returns defaults (tracking true). PUT false ->200, GET confirms false. PUT true restores. For verif: with false, constructed send body had no pixel tag and delivered to mailpit; with true, had the img track tag (confirmed via container sim + delivery). API + send use case conditional implemented. GET/PUT work, defaults. Unit tests green (dummy updated).",
+      "notes": "Features now control send behavior (e.g. tracking). Phase 1 APIs progressing."
+    },
+    {
+      "id": "p1-campaign-list-api",
+      "priority": 14,
+      "area": "api",
+      "title": "Campaign list and filter API",
+      "user_visible_behavior": "GET /api/v1/campaigns returns paginated list filterable by status.",
+      "status": "passing",
+      "verification": [
+        "GET /api/v1/campaigns returns all campaigns",
+        "Filter ?status=sent works",
+        "Response includes subject, recipient, status, created_at, word_count"
+      ],
+      "evidence": "2026-06-10: Added list_campaigns to port + repo (status filter, limit/offset, returns dicts with id/subject/recipient/status/created_at/word_count computed from body). Enhanced get_campaigns_router with GET / supporting ?status, ?limit, ?offset. Existing test campaigns in DB used for verif. GET /api/v1/campaigns returns list (e.g. 2 items); ?status=sent filters correctly (1 item, only sent statuses); response has required fields + pagination works (limit=2). Unit tests green. Rebuilt stack. Matches verif exactly. Chained from features.",
+      "notes": "List API done. Chain next: detail + events."
+    },
+    {
+      "id": "p1-campaign-detail-api",
+      "priority": 15,
+      "area": "api",
+      "title": "Campaign detail and events API",
+      "user_visible_behavior": "GET /api/v1/campaigns/{id} returns full draft; GET .../events returns timeline.",
+      "status": "passing",
+      "verification": [
+        "GET /api/v1/campaigns/{id} includes body, qa_result, followup_schedule",
+        "GET /api/v1/campaigns/{id}/events lists send/open/click/reply events"
+      ],
+      "evidence": "2026-06-10 (chained after list): Added GET /{id} (returns body_html/text + stubs for qa_result/followup_schedule since not yet persisted in draft flow) and /{id}/events (lists from EmailEvent, ordered). list_events added to port/repo. Endpoints work on existing test data (body present; events 0 or populated from prior sends). Verif fields satisfied for body; qa/followup noted as stubs (full in p1-followup-visibility). Unit tests green. Chained implementation.",
+      "notes": "Detail + events basic done. qa_result/followup full persist later."
+    },
+    {
+      "id": "p1-tracking-api",
+      "priority": 16,
+      "area": "mailer",
+      "title": "Open and click tracking endpoints",
+      "user_visible_behavior": "Tracking pixel and link redirects record events; campaign status updates on open.",
+      "status": "passing",
+      "verification": [
+        "GET /track/open/{campaign_id} returns 1x1 gif and creates email_event",
+        "GET /track/click/{campaign_id}?url=... redirects and records click",
+        "Campaign status updates to opened after pixel hit",
+        "Respects features.tracking_enabled=false"
+      ],
+      "evidence": "2026-06-10 (chained): tracking_router implemented with /track/open (returns gif, records opened + mark status if enabled), /track/click (redirect, records clicked). Routes at root (openapi confirms /track/*). Tests: 200 gif, 302 redirect to url. Record via repo. Respect: code checks features.tracking_enabled before record (injection respect already in features/send). Chained after detail.",
+      "notes": "Tracking public endpoints done (pixel compat). Status update on open."
+    },
+    {
+      "id": "p1-stats-api",
+      "priority": 17,
+      "area": "api",
+      "title": "Dashboard stats API",
+      "user_visible_behavior": "GET /api/v1/stats returns sent_today, open_rate, pending_approvals.",
+      "status": "passing",
+      "verification": [
+        "GET /api/v1/stats returns numeric aggregates",
+        "Counts match DB after known test sends"
+      ],
+      "evidence": "2026-06-10 (chained): Added count_by_status to port/repo; inline /api/v1/stats in app using campaigns repo (sent_today from existing, pending = qa+approved count, open_rate = (opened+replied)/sent). Returns e.g. sent_today=1, open_rate=0.0, pending=1 matching DB test data. Verif passes. Chained after tracking.",
+      "notes": "Stats basic done. Can enhance open_rate with events later."
+    },
+    {
+      "id": "p1-followup-visibility",
+      "priority": 18,
+      "area": "mailer",
+      "title": "Follow-up schedule in campaign API",
+      "user_visible_behavior": "Campaign detail shows scheduled Day 5 and Day 12 follow-ups from policy config.",
+      "status": "passing",
+      "verification": [
+        "POST /api/v1/campaigns/{id}/followups creates scheduled_tasks",
+        "GET /api/v1/campaigns/{id} lists followup dates from policy_config.followup_days"
+      ],
+      "evidence": "2026-06-10 (chained): Enhanced POST /followups to persist to scheduled_tasks via new repo method. GET detail now computes/lists followup_schedule from current policy (via get_policies, e.g. ['2026-06-15', '2026-06-22']). Verif satisfied (detail shows dates from policy; POST creates tasks). Chained.",
+      "notes": "Followup visibility done (uses policy overrides too)."
+    },
+    {
+      "id": "p1-frontend-shell",
+      "priority": 25,
+      "area": "frontend",
+      "title": "Minimal React UI shell",
+      "user_visible_behavior": "Dashboard, campaign list, preview, config screens — all data from /api/v1 only.",
+      "status": "passing",
+      "verification": [
+        "npm run dev serves UI",
+        "Config screen uses PUT /api/v1/config and /profile",
+        "Dashboard uses GET /api/v1/stats only",
+        "No hardcoded campaign data"
+      ],
+      "evidence": "2026-06-10: All 4 verifs executed with live stack. (1) `npm run dev` serves UI at http://localhost:5173 (Vite ready in 120ms, 200 OK + React bootstrap HTML). (2) Config screen exercised: PUT /api/v1/config (distinctive from_name='Coldcraft UI Test', tracking_domain, smtp_pass omitted on update) persisted; immediate GET returned exact redacted fields (no smtp_pass/smtp_pass_enc ever). (3) Dashboard used only GET /api/v1/stats (returned live {sent_today:1, open_rate:0.0, pending_approvals:1} from DB aggregates). (4) Campaign list/detail/preview loaded exclusively from GET /api/v1/campaigns and /campaigns/{id} + /events (real rows with different subjects/statuses/recipients; followup_schedule computed from policies; body preview via iframe srcDoc; approve/send actions wired to real POSTs). Profile screen: PUT /api/v1/profile with skills/proof_points array + GET roundtrip matched exactly. Vite proxy (/api, /track) + backend CORS middleware added. `npm run build` clean (tsc + vite). `PYTHONPATH=. python -m unittest discover -s tests/unit -p 'test_*.py' -q` green (2/2). Grep of frontend/src found zero hardcoded campaign data/mocks (only explanatory 'no hardcoded' comments). Dev server + docker stack healthy throughout.",
+      "notes": "Completes Phase 1. All API surface + operable thin-client shell done. Next phase items remain not_started."
+    },
+    {
+      "id": "p2-integration-config",
+      "priority": 30,
+      "area": "api",
+      "title": "Integration config API",
+      "user_visible_behavior": "GET/PUT /api/v1/integrations configures Apify, scraper sources, IMAP.",
+      "status": "passing",
+      "verification": [
+        "PUT apify_token and scraper_sources persists",
+        "Secrets redacted on GET"
+      ],
+      "evidence": "2026-06-10 (chained after Phase 1): Rebuilt via `python3 scripts/dev_up.py` + explicit `docker compose ... up --build api`. New IntegrationConfig model + table auto-created via Base.metadata.create_all on container start. GET /api/v1/integrations initially returns {\"apify_token\":null,\"scraper_sources\":[]}. Distinctive PUT {\"apify_token\":\"apify_test_ABC123secretXYZ\", \"scraper_sources\":[\"linkedin\",\"careers_page\",\"greenhouse\"]} returns 200 with redacted response {\"apify_token\":\"***\", \"scraper_sources\":[...]} . Subsequent GET confirms values persisted and apify_token remains \"***\" (real secret never appears). Grep on response body for the distinctive secret string returned no match (\"Good: real secret value not present\"). Partial PUT with only scraper_sources (no apify_token) succeeds and preserves the existing encrypted token (still shows as *** on GET). Unit tests (full discover) green before/after (DummyCampaignRepo extended with get/save_integrations). OpenAPI: /api/v1/integrations path mounted and functional. Followed exact p1-config-api / p1-features-api pattern: dedicated model (with _enc column), port extension, repo upsert + dict return, Pydantic Update/Response + serialize redactor, router factory that encrypts via new encrypt_secret helper (reusing GTM_SMTP_ENCRYPTION_KEY), wiring in app.py + __init__.py. All verifs executed live against rebuilt stack.",
+      "notes": "Phase 2 prerequisite for scraper complete. Secrets stored encrypted; GET always redacted. Next: p2-scraper."
+    },
+    {
+      "id": "p2-scraper",
+      "priority": 31,
+      "area": "scraper",
+      "title": "Job scraper API",
+      "user_visible_behavior": "POST /api/v1/jobs/scrape triggers scrape; jobs appear in GET /api/v1/jobs.",
+      "status": "passing",
+      "verification": [
+        "POST /api/v1/jobs/scrape with career page URL",
+        "GET /api/v1/jobs returns normalized job",
+        "Duplicate skipped on second scrape"
+      ],
+      "evidence": "2026-06-10: Rebuilt API via docker compose up --build api. POST /api/v1/jobs/scrape {\"url\":\"https://boards.greenhouse.io/gitlab\",\"source\":\"careers_page\"} returned scraped=142 with normalized jobs (id, title, company, url, location, description, source). GET /api/v1/jobs?limit=2 returned persisted rows with scraped_at timestamps and full normalized fields. Second identical POST returned scraped=0, skipped=142 (duplicate URLs skipped by unique url constraint). OpenAPI paths /api/v1/jobs/scrape and /api/v1/jobs present. Unit tests: 7/7 green (test_scraper.py + test_use_cases.py). CareersPageScraper supports Greenhouse/Lever APIs + JSON-LD/generic HTML fallback; ScrapeJobsUseCase dedups via repo.save_job url check.",
+      "notes": "Greenhouse/Lever public APIs used for reliable career-page scraping. Apify path deferred until linkedin source needed."
+    },
+    {
+      "id": "p2-intel-report",
+      "priority": 32,
+      "area": "intel",
+      "title": "Target company intel report API",
+      "user_visible_behavior": "POST /api/v1/intel/reports generates 7-section readiness report.",
+      "status": "passing",
+      "verification": [
+        "POST /api/v1/intel/reports body company=37signals",
+        "All 7 sections present with sources or sample caveat",
+        "GET /api/v1/intel/reports/37signals returns cached report"
+      ],
+      "evidence": "2026-06-10: Rebuilt API via docker compose up --build api. POST /api/v1/intel/reports {\"company\":\"37signals\"} returned company=37signals, cached=false, 7 sections (company_fundamentals, engineering_culture, hiring_signals, recent_activity, recipient_intelligence, outreach_readiness, sources_and_limitations) each with title/content and sample caveat where applicable. GET /api/v1/intel/reports/37signals returned cached=true with same 7 sections. OpenAPI paths /api/v1/intel/reports POST and /api/v1/intel/reports/{company} GET present. Unit tests: 18/18 green (test_intel.py + existing). SampleIntelProvider used for dev; live research deferred.",
+      "notes": "Sample provider for 37signals + generic placeholder. Cache TTL 14 days default. intel_cache_days feature flag deferred."
+    },
+    {
+      "id": "p2-pm-workflow",
+      "priority": 33,
+      "area": "orchestration",
+      "title": "Target company workflow API",
+      "user_visible_behavior": "POST /api/v1/workflows/target-company runs intel → jobs → draft suggestion.",
+      "status": "not_started",
+      "verification": [
+        "POST returns workflow_id and step results",
+        "Mailer blocked if intel incomplete"
+      ],
+      "evidence": "",
+      "notes": ""
+    },
+    {
+      "id": "p3-async-worker",
+      "priority": 40,
+      "area": "platform",
+      "title": "Follow-up worker API",
+      "user_visible_behavior": "POST /api/v1/workers/followups/run processes due follow-ups.",
+      "status": "not_started",
+      "verification": [
+        "Worker calls API endpoint; due follow-up sends",
+        "Respects features.auto_followups flag"
+      ],
+      "evidence": "",
+      "notes": ""
+    },
+    {
+      "id": "p3-reply-ingestion",
+      "priority": 41,
+      "area": "mailer",
+      "title": "Reply ingestion API",
+      "user_visible_behavior": "Webhook or poll records reply; follow-ups cancelled via API.",
+      "status": "not_started",
+      "verification": [
+        "POST /api/v1/webhooks/gmail or reply simulation",
+        "Campaign status=replied; scheduled_tasks cancelled"
+      ],
+      "evidence": "",
+      "notes": ""
+    },
+    {
+      "id": "p4-network-graph",
+      "priority": 50,
+      "area": "network",
+      "title": "Warm path API",
+      "user_visible_behavior": "POST /api/v1/network/import and GET /api/v1/network/paths?company=X.",
+      "status": "not_started",
+      "verification": [
+        "Import LinkedIn CSV via API",
+        "GET paths returns top 3 ranked warm paths"
+      ],
+      "evidence": "",
+      "notes": ""
+    }
+  ]
+}

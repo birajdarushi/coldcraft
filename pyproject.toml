@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coldcraft"
+version = "0.1.0"
+description = "Constitution-governed AI cold outreach engine for job seekers"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0.0",
+    "cryptography>=46.0.7",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.9",
+    "dnspython>=2.6.1",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["coldcraft*"]
+
+[tool.setuptools.package-data]
+coldcraft = ["*.md"]

@@ -10,6 +10,9 @@ class DummyDrafter:
         return [{"text": "Hook", "specificity": 5, "surprise_factor": 4, "relevance": 5}]
 
     def draft(self, hook, company_intel, sender_profile, recipient_name):
+        return self.draft_oneshot(company_intel, sender_profile, recipient_name)
+
+    def draft_oneshot(self, company_intel, sender_profile, recipient_name):
         return DraftResult(
             campaign_id="",
             subject="Solid subject",
@@ -18,7 +21,7 @@ class DummyDrafter:
             word_count=18,
             personalization_signals=["x", "y"],
             hook_candidates=[],
-            selected_hook=hook,
+            selected_hook={"text": "Hook", "signal_used": None},
         )
 
     def revise(self, draft, violations):
@@ -56,6 +59,51 @@ class DummyCampaignRepo:
 
     def create_draft_campaign(self, draft, request):
         return "cid"
+
+    def get_user_config(self):
+        return None
+
+    def save_user_config(self, smtp_host, smtp_port, smtp_user, smtp_pass_enc, from_email, from_name, tracking_domain=None):
+        pass
+
+    def get_sender_profile(self):
+        return None
+
+    def save_sender_profile(self, name, email, skills, proof_points, tone=None):
+        pass
+
+    def get_policies(self):
+        return None
+
+    def save_policies(self, daily_send_limit=None, max_company_emails_30d=None, subject_max_chars=None, followup_days=None):
+        pass
+
+    def get_features(self):
+        return {"tracking_enabled": True, "auto_followups": True}
+
+    def save_features(self, tracking_enabled=None, auto_followups=None):
+        pass
+
+    def get_integrations(self):
+        return {"apify_token": None, "scraper_sources": []}
+
+    def save_integrations(self, apify_token_enc=None, scraper_sources=None):
+        pass
+
+    def get_job_by_url(self, url):
+        return None
+
+    def save_job(self, job):
+        return job.id, True
+
+    def list_jobs(self, company=None, limit=100, offset=0):
+        return []
+
+    def get_intel_report(self, company):
+        return None
+
+    def save_intel_report(self, company, sections, generated_at):
+        pass
 
 
 class CreateDraftUseCaseTests(unittest.TestCase):

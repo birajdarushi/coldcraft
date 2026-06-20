@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gtm
+      POSTGRES_PASSWORD: gtm
+      POSTGRES_DB: gtm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtm -d gtm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://gtm:gtm@db:5432/gtm
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
+      GTM_SMTP_ENCRYPTION_KEY: ${GTM_SMTP_ENCRYPTION_KEY:-}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      FROM_EMAIL: coldcraft@localhost
+      FROM_NAME: Coldcraft Dev
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    command: >
+      sh -c "python scripts/seed_db.py &&
+             uvicorn coldcraft.api.app:app --host 0.0.0.0 --port 8000 --reload"
+
+  # Vite React dev server (HMR). Source is volume-mounted.
+  # Use VITE_API_PROXY_TARGET so the Vite proxy talks to the api service by name inside Docker.
+  # Outside Docker (cd frontend && npm run dev) it falls back to localhost.
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://api:8000
+    command: >
+      sh -c "
+        npm install --prefer-offline --no-audit --no-fund &&
+        npm run dev -- --host 0.0.0.0
+      "
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  frontend_node_modules:
