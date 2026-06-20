@@ -27,12 +27,16 @@ def get_config_router(campaigns_repo) -> APIRouter:
     def put_config(body: ConfigUpdate):
         if not body.smtp_pass:
             existing = campaigns_repo.get_user_config()
-            if not existing:
+            if existing:
+                pass_enc = existing.smtp_pass_enc
+            elif body.delivery_mode == "mailpit":
+                # Mailpit needs no auth — store an encrypted placeholder so the row is valid.
+                pass_enc = encrypt_smtp_password("")
+            else:
                 raise HTTPException(
                     status_code=422,
                     detail="smtp_pass is required when creating initial config",
                 )
-            pass_enc = existing.smtp_pass_enc
         else:
             try:
                 pass_enc = encrypt_smtp_password(body.smtp_pass)
@@ -47,6 +51,7 @@ def get_config_router(campaigns_repo) -> APIRouter:
             from_email=body.from_email,
             from_name=body.from_name,
             tracking_domain=body.tracking_domain,
+            delivery_mode=body.delivery_mode,
         )
 
         cfg = campaigns_repo.get_user_config()

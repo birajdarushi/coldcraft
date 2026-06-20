@@ -72,7 +72,35 @@ def _migrate_jobs_table(engine) -> None:
             )
 
 
+def _migrate_integration_config(engine) -> None:
+    """Add new columns to an existing integration_config table on upgrade."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "integration_config" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("integration_config")}
+    if "gemini_api_key_enc" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE integration_config ADD COLUMN gemini_api_key_enc TEXT"))
+
+
+def _migrate_user_config(engine) -> None:
+    """Add new columns to an existing user_config table on upgrade."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "user_config" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("user_config")}
+    if "delivery_mode" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE user_config ADD COLUMN delivery_mode VARCHAR(16) DEFAULT 'smtp' NOT NULL"))
+
+
 def init_db() -> None:
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
     _migrate_jobs_table(engine)
+    _migrate_integration_config(engine)
+    _migrate_user_config(engine)

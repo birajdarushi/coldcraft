@@ -4,6 +4,7 @@ Constitution §6.1 (config requirements), §6.4 (header hygiene), §6.5 (bounce 
 Uses smtplib with TLS. Credentials loaded fresh per send — never cached in memory.
 """
 
+import os
 import smtplib
 import uuid
 import logging
@@ -33,7 +34,7 @@ class SMTPClient:
         Send email. Returns Message-ID on success.
         Raises on any SMTP error — caller handles retry logic.
         """
-        password = self._decrypt_password(self.config.smtp_pass_enc)
+        mode = getattr(self.config, "delivery_mode", "smtp") or "smtp"
 
         msg = self._build_message(
             to_email=to_email,
@@ -44,6 +45,19 @@ class SMTPClient:
         )
 
         try:
+            if mode == "mailpit":
+                # Test mode: capture locally in Mailpit. No TLS, no auth, no real delivery.
+                host = os.environ.get("SMTP_HOST", "mailpit")
+                port = int(os.environ.get("SMTP_PORT", "1025"))
+                with smtplib.SMTP(host, port, timeout=30) as server:
+                    server.ehlo()
+                    server.sendmail(self.config.from_email, [to_email], msg.as_string())
+                    message_id = msg["Message-ID"]
+                    logger.info(f"Mailpit capture: to={to_email} message_id={message_id} ({host}:{port})")
+                    return message_id
+
+            # Live mode: real delivery via the configured SMTP server (TLS + auth).
+            password = self._decrypt_password(self.config.smtp_pass_enc)
             with smtplib.SMTP(self.config.smtp_host, self.config.smtp_port, timeout=30) as server:
                 server.ehlo()
                 server.starttls()

@@ -18,6 +18,8 @@ from .routers import (
     get_jobs_router,
     get_policies_router,
     get_profile_router,
+    get_providers_router,
+    get_resumes_router,
     health_router,
     get_tracking_router,
 )
@@ -77,6 +79,14 @@ def create_app() -> FastAPI:
     # Integrations (p2-integration-config)
     integrations_router = get_integrations_router(campaigns)
     app.include_router(integrations_router, prefix="/api/v1")
+
+    # Providers / API keys (LLM + scraper provider keys, encrypted at rest)
+    providers_router = get_providers_router(campaigns)
+    app.include_router(providers_router, prefix="/api/v1")
+
+    # Resumes / cover letters (LaTeX docs: store + compile to PDF)
+    resumes_router = get_resumes_router(campaigns)
+    app.include_router(resumes_router, prefix="/api/v1")
 
     # Jobs scraper (p2-scraper)
     jobs_router = get_jobs_router(campaigns)

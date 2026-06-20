@@ -46,6 +46,8 @@ class UserConfig(Base):
     from_email: Mapped[str] = mapped_column(String(255))
     from_name: Mapped[str] = mapped_column(String(255))
     tracking_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # 'smtp' = live send via configured server; 'mailpit' = capture locally (no real delivery)
+    delivery_mode: Mapped[str] = mapped_column(String(16), default="smtp", server_default="smtp")
 
 
 class SenderProfile(Base):
@@ -125,6 +127,8 @@ class IntegrationConfig(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     apify_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     scraper_sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Encrypted LLM provider API key (Gemini) — powers drafting/intel.
+    gemini_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Future integration fields (IMAP, etc.) can be added as additional columns or evolve to a data JSON column.
 
 
@@ -134,3 +138,14 @@ class IntelReport(Base):
     company: Mapped[str] = mapped_column(String(255), primary_key=True)
     sections: Mapped[dict] = mapped_column(JSON)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Resume(Base):
+    __tablename__ = "resumes"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), default="Untitled")
+    kind: Mapped[str] = mapped_column(String(32), default="resume")  # 'resume' | 'cover_letter'
+    latex_source: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

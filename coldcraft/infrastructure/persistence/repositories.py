@@ -157,6 +157,7 @@ class SQLAlchemyCampaignRepository:
         from_email: str,
         from_name: str,
         tracking_domain: str | None = None,
+        delivery_mode: str = "smtp",
     ) -> None:
         with get_session() as db:
             existing = db.query(UserConfig).first()
@@ -168,6 +169,7 @@ class SQLAlchemyCampaignRepository:
                 existing.from_email = from_email
                 existing.from_name = from_name
                 existing.tracking_domain = tracking_domain
+                existing.delivery_mode = delivery_mode
             else:
                 db.add(
                     UserConfig(
@@ -178,6 +180,7 @@ class SQLAlchemyCampaignRepository:
                         from_email=from_email,
                         from_name=from_name,
                         tracking_domain=tracking_domain,
+                        delivery_mode=delivery_mode,
                     )
                 )
             db.commit()
@@ -314,14 +317,16 @@ class SQLAlchemyCampaignRepository:
                 return {
                     "apify_token_enc": cfg.apify_token_enc,
                     "scraper_sources": cfg.scraper_sources or [],
+                    "gemini_api_key_enc": cfg.gemini_api_key_enc,
                 }
             # defaults
-            return {"apify_token_enc": None, "scraper_sources": []}
+            return {"apify_token_enc": None, "scraper_sources": [], "gemini_api_key_enc": None}
 
     def save_integrations(
         self,
         apify_token_enc: str | None = None,
         scraper_sources: list | None = None,
+        gemini_api_key_enc: str | None = None,
     ) -> None:
         with get_session() as db:
             existing = db.query(IntegrationConfig).first()
@@ -330,14 +335,30 @@ class SQLAlchemyCampaignRepository:
                     existing.apify_token_enc = apify_token_enc
                 if scraper_sources is not None:
                     existing.scraper_sources = scraper_sources
+                if gemini_api_key_enc is not None:
+                    existing.gemini_api_key_enc = gemini_api_key_enc
             else:
                 db.add(
                     IntegrationConfig(
                         apify_token_enc=apify_token_enc,
                         scraper_sources=scraper_sources if scraper_sources is not None else [],
+                        gemini_api_key_enc=gemini_api_key_enc,
                     )
                 )
             db.commit()
+
+    def get_gemini_api_key(self) -> str | None:
+        """Return the decrypted Gemini API key from config, or None if unset."""
+        from ...config.secrets import decrypt_secret
+
+        cfg = self.get_integrations()
+        enc = cfg.get("gemini_api_key_enc")
+        if not enc:
+            return None
+        try:
+            return decrypt_secret(enc)
+        except Exception:
+            return None
 
     def mark_user_approved(self, campaign_id: str) -> bool:
         with get_session() as db:
@@ -398,6 +419,72 @@ class SQLAlchemyCampaignRepository:
                 q = q.filter(Job.company.ilike(f"%{company}%"))
             q = q.order_by(Job.scraped_at.desc().nullslast()).offset(offset).limit(limit)
             return [self._job_to_dict(job) for job in q.all()]
+
+    def delete_jobs(self, ids: list[str]) -> int:
+        """Delete jobs by id. Returns the number actually removed."""
+        if not ids:
+            return 0
+        with get_session() as db:
+            deleted = db.query(Job).filter(Job.id.in_(ids)).delete(synchronize_session=False)
+            db.commit()
+            return int(deleted or 0)
+
+    # ---- Resumes / cover letters (LaTeX documents) ----
+    @staticmethod
+    def _resume_to_dict(r) -> dict:
+        return {
+            "id": r.id,
+            "name": r.name,
+            "kind": r.kind,
+            "latex_source": r.latex_source,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        }
+
+    def list_resumes(self, kind: str | None = None) -> list:
+        from ...db.models import Resume
+        with get_session() as db:
+            q = db.query(Resume)
+            if kind:
+                q = q.filter(Resume.kind == kind)
+            q = q.order_by(Resume.updated_at.desc())
+            return [self._resume_to_dict(r) for r in q.all()]
+
+    def get_resume(self, resume_id: str) -> dict | None:
+        from ...db.models import Resume
+        with get_session() as db:
+            r = db.query(Resume).filter_by(id=resume_id).first()
+            return self._resume_to_dict(r) if r else None
+
+    def create_resume(self, name: str, latex_source: str, kind: str = "resume") -> dict:
+        from ...db.models import Resume
+        now = datetime.now(timezone.utc)
+        rid = uuid.uuid4().hex
+        with get_session() as db:
+            db.add(Resume(id=rid, name=name or "Untitled", kind=kind, latex_source=latex_source or "", created_at=now, updated_at=now))
+            db.commit()
+        return self.get_resume(rid)
+
+    def update_resume(self, resume_id: str, name: str | None = None, latex_source: str | None = None) -> dict | None:
+        from ...db.models import Resume
+        with get_session() as db:
+            r = db.query(Resume).filter_by(id=resume_id).first()
+            if not r:
+                return None
+            if name is not None:
+                r.name = name
+            if latex_source is not None:
+                r.latex_source = latex_source
+            r.updated_at = datetime.now(timezone.utc)
+            db.commit()
+        return self.get_resume(resume_id)
+
+    def delete_resume(self, resume_id: str) -> bool:
+        from ...db.models import Resume
+        with get_session() as db:
+            deleted = db.query(Resume).filter_by(id=resume_id).delete()
+            db.commit()
+            return bool(deleted)
 
     @staticmethod
     def _job_to_dict(job: Job) -> dict:

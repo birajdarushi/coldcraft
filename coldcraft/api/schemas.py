@@ -30,6 +30,7 @@ class ConfigUpdate(BaseModel):
     from_email: str
     from_name: str
     tracking_domain: str | None = None
+    delivery_mode: str = "smtp"  # 'smtp' (live) | 'mailpit' (local test capture)
 
 
 class ConfigResponse(BaseModel):
@@ -39,6 +40,7 @@ class ConfigResponse(BaseModel):
     from_email: str
     from_name: str
     tracking_domain: str | None = None
+    delivery_mode: str = "smtp"
     # deliberately excludes smtp_pass / smtp_pass_enc
 
 
@@ -66,6 +68,7 @@ def serialize_config(cfg) -> dict:
         "from_email": cfg.from_email,
         "from_name": cfg.from_name,
         "tracking_domain": cfg.tracking_domain,
+        "delivery_mode": getattr(cfg, "delivery_mode", "smtp") or "smtp",
     }
 
 

@@ -9,6 +9,8 @@ from .intel import get_intel_router
 from .jobs import get_jobs_router
 from .policies import get_policies_router
 from .profile import get_profile_router
+from .providers import get_providers_router
+from .resumes import get_resumes_router
 from .tracking import get_tracking_router
 
 __all__ = [
@@ -22,5 +24,7 @@ __all__ = [
     "get_jobs_router",
     "get_policies_router",
     "get_profile_router",
+    "get_providers_router",
+    "get_resumes_router",
     "get_tracking_router",
 ]
