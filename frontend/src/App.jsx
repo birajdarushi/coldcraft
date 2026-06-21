@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./components/Landing.jsx";
+import Cursor from "./components/Cursor.jsx";
 import Login from "./pages/Login.jsx";
 import { useAuth } from "./lib/auth.jsx";
 import { Loading } from "./components/ui.jsx";
@@ -39,6 +40,7 @@ export default function App() {
   const { email, loading } = useAuth();
   return (
     <>
+      <Cursor />
       <Landing />
       {loading ? (
         <div className="fixed inset-0 grid-bg bg-background flex items-center justify-center">

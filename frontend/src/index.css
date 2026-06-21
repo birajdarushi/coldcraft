@@ -82,6 +82,40 @@
   will-change: transform, opacity;
 }
 
+/* Custom cursor: blue dot with a trailing ring (only on fine-pointer devices) */
+.custom-cursor,
+.custom-cursor * { cursor: none !important; }
+
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 9999px !important; /* override the global sharp-corner rule */
+  will-change: transform;
+}
+.cursor-dot {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  background: hsl(var(--accent)); /* blue dot */
+}
+.cursor-ring {
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid hsl(var(--foreground)); /* dark ring (adapts so it stays visible) */
+  transition: width 120ms ease, height 120ms ease, margin 120ms ease, background-color 120ms ease;
+}
+.cursor-ring.cursor-down {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  background: hsl(var(--accent) / 0.15);
+}
+
 /* Toggle switch (adapted from Uiverse.io by martinval9) — theme-aware */
 .switch {
   font-size: 16px;

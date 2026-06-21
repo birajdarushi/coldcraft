@@ -16,7 +16,7 @@ const TABS = [
 ];
 
 function AccountTab() {
-  const { email, logout } = useAuth();
+  const { email, isGuest, logout } = useAuth();
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +31,21 @@ function AccountTab() {
       setError(e?.detail || "Could not delete account.");
       setBusy(false);
     }
+  }
+
+  if (isGuest) {
+    return (
+      <Panel title="Session">
+        <Banner tone="warn">
+          You're browsing as a guest. Sign in with email to manage an account.
+        </Banner>
+        <div className="mt-4">
+          <Button variant="secondary" onClick={logout} data-testid="account-exit-guest">
+            <LogOut className="w-3.5 h-3.5" /> Exit guest
+          </Button>
+        </div>
+      </Panel>
+    );
   }
 
   return (
@@ -446,7 +461,7 @@ export default function Settings() {
           {TABS.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} data-testid={`settings-tab-${t.key}`}
               className={`flex items-center gap-2 px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider ${tab === t.key ? "bg-foreground text-background" : "bg-surface text-muted-foreground hover:bg-muted"}`}>
-              <span className="opacity-50 text-[9px]">{t.code}</span>{t.label}
+              {import.meta.env.DEV && <span className="opacity-50 text-[9px]">{t.code}</span>}{t.label}
             </button>
           ))}
         </div>
