@@ -82,10 +82,7 @@
   will-change: transform, opacity;
 }
 
-/* Custom cursor: blue dot with a trailing ring (only on fine-pointer devices) */
-.custom-cursor,
-.custom-cursor * { cursor: none !important; }
-
+/* Cursor accent: blue dot + dark ring under the native pointer (fine-pointer only) */
 .cursor-dot,
 .cursor-ring {
   position: fixed;
