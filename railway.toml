@@ -1,0 +1,11 @@
+# Railway deploy config for the Coldcraft FastAPI backend.
+# Builds the repo Dockerfile; the CMD binds uvicorn to Railway's $PORT.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

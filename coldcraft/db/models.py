@@ -25,6 +25,19 @@ class Campaign(Base):
     message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
+class AuthOTP(Base):
+    """One-time login codes sent over email. Codes are stored hashed (never plain)."""
+    __tablename__ = "auth_otps"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    consumed: Mapped[bool] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class EmailEvent(Base):
     __tablename__ = "email_events"
 

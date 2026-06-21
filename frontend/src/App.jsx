@@ -1,4 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import Landing from "./components/Landing.jsx";
+import Login from "./pages/Login.jsx";
+import { useAuth } from "./lib/auth.jsx";
+import { Loading } from "./components/ui.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Campaigns from "./pages/Campaigns.jsx";
 import CampaignDetail from "./pages/CampaignDetail.jsx";
@@ -10,7 +14,7 @@ import Resumes from "./pages/Resumes.jsx";
 import Settings from "./pages/Settings.jsx";
 import { Workflow, Followups, Replies, NetworkPaths } from "./pages/Planned.jsx";
 
-export default function App() {
+function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Dashboard />} />
@@ -28,5 +32,23 @@ export default function App() {
       <Route path="/network" element={<NetworkPaths />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+export default function App() {
+  const { email, loading } = useAuth();
+  return (
+    <>
+      <Landing />
+      {loading ? (
+        <div className="fixed inset-0 grid-bg bg-background flex items-center justify-center">
+          <Loading label="AUTHENTICATING…" />
+        </div>
+      ) : email ? (
+        <AppRoutes />
+      ) : (
+        <Login />
+      )}
+    </>
   );
 }

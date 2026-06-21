@@ -16,6 +16,12 @@ const NAV = [
   { to: "/settings", label: "SETTINGS", code: "08", icon: SlidersHorizontal, testId: "nav-settings" },
 ];
 
+// Dev tooling endpoints. In production these come from env (or are hidden) so
+// the shell never points operators at localhost.
+const IS_DEV = import.meta.env.DEV;
+const API_BASE = import.meta.env.VITE_API_URL || (IS_DEV ? "http://localhost:8000" : "");
+const MAILPIT_URL = import.meta.env.VITE_MAILPIT_URL || (IS_DEV ? "http://localhost:8025" : "");
+
 const NAV_PLANNED = [
   { to: "/workflows", label: "WORKFLOW", code: "13", icon: GitBranch, testId: "nav-workflows" },
   { to: "/followups", label: "FOLLOW-UPS", code: "14", icon: Clock, testId: "nav-followups" },
@@ -119,26 +125,30 @@ function Sidebar() {
 
       <div className="border-t border-border p-3 space-y-2">
         <div className="font-mono text-[9px] tracking-[0.3em] text-muted-foreground/70 px-1 mb-1">UTILITIES</div>
-        <a
-          href="http://localhost:8025"
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="util-mailpit"
-          className="flex items-center justify-between gap-2 px-2.5 py-1.5 border border-border hover:bg-muted text-[10px] font-mono tracking-wider uppercase"
-        >
-          <span>Mailpit inbox</span>
-          <ExternalLink className="w-3 h-3" />
-        </a>
-        <a
-          href="http://localhost:8000/docs"
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="util-api-docs"
-          className="flex items-center justify-between gap-2 px-2.5 py-1.5 border border-border hover:bg-muted text-[10px] font-mono tracking-wider uppercase"
-        >
-          <span>API docs</span>
-          <ExternalLink className="w-3 h-3" />
-        </a>
+        {MAILPIT_URL && (
+          <a
+            href={MAILPIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="util-mailpit"
+            className="flex items-center justify-between gap-2 px-2.5 py-1.5 border border-border hover:bg-muted text-[10px] font-mono tracking-wider uppercase"
+          >
+            <span>Mailpit inbox</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        )}
+        {API_BASE && (
+          <a
+            href={`${API_BASE}/docs`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="util-api-docs"
+            className="flex items-center justify-between gap-2 px-2.5 py-1.5 border border-border hover:bg-muted text-[10px] font-mono tracking-wider uppercase"
+          >
+            <span>API docs</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        )}
         <ApiIndicator />
         <ThemeToggle />
       </div>
