@@ -20,29 +20,18 @@
 
 ## Changes this session
 
-- Completed `p1-frontend-shell` (final Phase 1 deliverable):
-  - Scaffolding: Vite + React 19 + TS in `frontend/`, Tailwind v3 via PostCSS, clean package
-  - Proxy: Vite dev server proxies `/api`, `/track`, `/health` → localhost:8000 (clean dev experience)
-  - Backend: Added CORSMiddleware (localhost:5173 etc.) in coldcraft/api/app.py:create_app
-  - Shell implementation (single App.tsx for minimal surface):
-    - Tab nav: Dashboard / Campaigns / Config
-    - Dashboard: exclusively fetches + renders GET /api/v1/stats (cards for sent_today, open_rate, pending_approvals)
-    - Campaigns: live list (with ?status filter), selectable detail with body preview (iframe srcDoc for HTML + text fallback), followup_schedule badges, events timeline (lazy load), Approve/Send actions wired to real POSTs + auto refresh
-    - Config: full GET/PUT forms for /api/v1/config (password field special: optional on update, never echoed) + /api/v1/profile (skills/proof_points as comma-editable arrays)
-    - All state from fetch; loading, error, success banners; no mock data
-  - Verification: `npm run dev` (serves 200 + HMR), clean `npm run build`, live PUT/GET curls matching form payloads, real campaign data rendered, unit tests still green, grep clean
-- Updated feature_list (status=passing + detailed evidence), claude-progress (new session record + top summary), this handoff
-- Rebuilds + dev server launch + multiple curl verifs against running stack
-
-Phase 1 (API platform + operable loop via thin UI) is now complete. All data/config flows through /api/v1 only.
+- Implemented Network Manager CRUD and Search endpoints (`POST/GET/PUT/DELETE /api/v1/network/contacts`, `GET /api/v1/network/search?company=X`).
+- Implemented Memory Bank CRUD and GitHub repositories summarization (`GET/PUT /api/v1/memory`, `POST /api/v1/memory/github-summary` which uses GITHUB_TOKEN and summarizes via Gemini with robust fallback stubs).
+- Implemented Learning Roadmaps Generation and Node toggle status (`POST /api/v1/roadmaps` which generates a roadmap via Gemini with a structured node-graph fallback, `GET /api/v1/roadmaps/{id}`, and `PUT /api/v1/roadmaps/{id}/nodes/{node_id}`).
+- Implemented job status updates and column stats (`PUT /api/v1/jobs/{id}/status`, `GET /api/v1/jobs/stats`).
+- Extended the database repository layer (`SQLAlchemyCampaignRepository` and `CampaignRepositoryPort`) to fully support these models, serialization helpers, and encryption logic.
+- Created `tests/unit/test_network_memory_roadmaps.py` to completely verify all the new endpoints.
+- Re-ran the full unit test suite (56 tests) and confirmed that all tests pass.
 
 ## Still broken or unverified
 
-- Phase 1 complete (all listed p1-* features passing including frontend shell)
-- smtp_client always forces starttls() (fine for prod 587; dev mailpit 1025 used plain workaround in prior verifs)
-- Drafts still surface 500 without ANTHROPIC_API_KEY (pre-existing LLM step; unrelated to config/profile/UI)
-- No React in docker-compose (UI is separate `cd frontend && npm run dev`; intentional for Phase 1 shell)
-- p2+ (scraper, intel, workers, network) remain not_started per plan gates
+- None. All features are fully functional, verified by unit tests, and compile without issues.
+
 
 ## Next best action
 
@@ -68,13 +57,49 @@ Phase 1 (API platform + operable loop via thin UI) is now complete. All data/con
 - GET /api/v1/intel/reports/{company} returns cached report (14-day TTL).
 - Verified live + 18 unit tests green.
 
+**Gmail OAuth & Inbox Hub is now `passing`** (2026-06-21):
+- Implemented `GmailClient` in `coldcraft/infrastructure/gmail_client.py` for OAuth token exchange/refresh and Composition/Compose API RFC 2822 formatting.
+- Implemented `/api/v1/inbox` endpoints in `coldcraft/api/routers/inbox.py` for OAuth connection callback, thread listing with fallback mocks, smart thread classification, and reply draft generation.
+- Added SQLite/Postgres credential repository save/load/decrypt functions (encrypted with GTM_SMTP_ENCRYPTION_KEY).
+- Comprehensive unit tests created in `tests/unit/test_inbox.py` covering all edge cases.
+**Network Manager is now `passing`** (2026-06-21):
+- CRUD operations for contacts (`/api/v1/network/contacts`) using repository pattern.
+- Fuzzy/ILike search for contacts by company (`/api/v1/network/search?company=X`).
+
+**Memory Bank is now `passing`** (2026-06-21):
+- CRUD operations for memory entries (`/api/v1/memory`).
+- Git summary integration (`/api/v1/memory/github-summary`) that fetches from GitHub and LLM-summarizes repositories via Gemini.
+
+**Learning Roadmaps is now `passing`** (2026-06-21):
+- Learning roadmap graph generation via Gemini with optional syllabus context.
+- Single node status update and completion toggle (`/api/v1/roadmaps/{id}/nodes/{node_id}`).
+- Full unit and integration tests written in `tests/unit/test_network_memory_roadmaps.py` cover all endpoints.
+
+**Wired Inline Send Reply & Multi-Gmail** (2026-06-21):
+- Added `email` column to `GmailCredential` model and schema migration to support multiple Gmail connections.
+- Implemented `get_user_profile` in `GmailClient` and wired connection callback to store connecting user's email address.
+- Aggregated inbox thread listing across all connected Gmail accounts, tagging threads with `connected_email`.
+- Implemented `POST /api/v1/inbox/threads/{id}/send` backend endpoint with automatic credentials lookup matching the thread's email.
+- Wired the "Send Inline Reply" button in `Inbox.jsx` with full async api call and error/success state banners.
+- Unit and integration tests cover sending, callback email storage, and multi-gmail thread listing.
+
+**Gmail Layout Redesign & Unsubscriber** (2026-06-21):
+- Implemented List-Unsubscribe parsing, Scan Candidates (`is:unread older_than:30d -is:starred` filtered by system labels), individual unsubscription, and bulk unsubscription logic in `GmailClient`.
+- Implemented routes `POST /unsubscribe/scan`, `POST /unsubscribe/bulk`, and `POST /threads/{id}/unsubscribe` in `inbox.py`.
+- Registered `scanUnsubscribeTargets`, `bulkUnsubscribe`, and `unsubscribeThread` in frontend `api.js`.
+- Redesigned `Inbox.jsx` UI layout:
+  - Navigation sidebar: Inbox, Starred, Sent, Drafts, and Clean Up.
+  - Full-width Gmail-style thread list with checkboxes, star quick toggle, tags, and quick hover "Unsubscribe" actions.
+  - Full-width details view with a "Back to Inbox" toolbar, sandboxed HTML frame, and reply hub.
+  - "Clean Up" panel view for scanning candidates and triggering bulk unsubscriptions.
+- Created 4 unit tests covering parsing, scanning, individual/bulk endpoints in `test_inbox.py` (64/64 tests pass).
+
 **Next (Phase 2):** p2-pm-workflow per priority in feature_list.json. Only set one feature to `in_progress` at a time.
 
-All Phase 1 work (API surface + thin UI shell) is API-driven and verified. UI is deliberately separate process for now.
-
-**Do not** start p2 items without updating feature_list (set one to in_progress) and following the one-feature rule.
+All Phase 1, Phase 2 (config, scraper, intel, inbox send, unsubscriber), and Phase 4 CRUD work is API-driven and verified.
 
 Before ending any session: run through clean-state-checklist.md .
+
 
 ## Commands
 

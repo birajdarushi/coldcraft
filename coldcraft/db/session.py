@@ -58,6 +58,8 @@ def _migrate_jobs_table(engine) -> None:
         "description": "TEXT",
         "source": "VARCHAR(64) DEFAULT 'careers_page' NOT NULL",
         "scraped_at": "TIMESTAMP WITH TIME ZONE",
+        "status": "VARCHAR(32) DEFAULT 'scraped' NOT NULL",
+        "applied_at": "TIMESTAMP WITH TIME ZONE",
     }
     with engine.begin() as conn:
         for col, ddl in additions.items():
@@ -80,9 +82,13 @@ def _migrate_integration_config(engine) -> None:
     if "integration_config" not in inspector.get_table_names():
         return
     existing = {col["name"] for col in inspector.get_columns("integration_config")}
-    if "gemini_api_key_enc" not in existing:
-        with engine.begin() as conn:
+    with engine.begin() as conn:
+        if "gemini_api_key_enc" not in existing:
             conn.execute(text("ALTER TABLE integration_config ADD COLUMN gemini_api_key_enc TEXT"))
+        if "github_token_enc" not in existing:
+            conn.execute(text("ALTER TABLE integration_config ADD COLUMN github_token_enc TEXT"))
+        if "github_username" not in existing:
+            conn.execute(text("ALTER TABLE integration_config ADD COLUMN github_username VARCHAR(255)"))
 
 
 def _migrate_user_config(engine) -> None:
@@ -98,9 +104,23 @@ def _migrate_user_config(engine) -> None:
             conn.execute(text("ALTER TABLE user_config ADD COLUMN delivery_mode VARCHAR(16) DEFAULT 'smtp' NOT NULL"))
 
 
+def _migrate_gmail_credentials(engine) -> None:
+    """Add email column to gmail_credentials on upgrade."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "gmail_credentials" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("gmail_credentials")}
+    if "email" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE gmail_credentials ADD COLUMN email VARCHAR(255)"))
+
+
 def init_db() -> None:
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
     _migrate_jobs_table(engine)
     _migrate_integration_config(engine)
     _migrate_user_config(engine)
+    _migrate_gmail_credentials(engine)

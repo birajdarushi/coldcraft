@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from ...db.session import get_session
-from ...db.models import Campaign, EmailEvent, UserConfig, Job, SenderProfile, PolicyConfig, FeatureConfig, ScheduledTask, IntegrationConfig
+from ...db.models import Campaign, EmailEvent, UserConfig, Job, SenderProfile, PolicyConfig, FeatureConfig, ScheduledTask, IntegrationConfig, Contact, MemoryEntry, Roadmap
 
 
 class SQLAlchemyCampaignRepository:
@@ -309,25 +309,37 @@ class SQLAlchemyCampaignRepository:
                 )
             db.commit()
 
-    def get_integrations(self):
+    def get_integrations(self) -> dict:
+        from ...db.models import IntegrationConfig
         with get_session() as db:
             cfg = db.query(IntegrationConfig).first()
             if cfg:
-                db.expunge(cfg)
                 return {
                     "apify_token_enc": cfg.apify_token_enc,
                     "scraper_sources": cfg.scraper_sources or [],
                     "gemini_api_key_enc": cfg.gemini_api_key_enc,
+                    "github_token_enc": cfg.github_token_enc,
+                    "github_username": cfg.github_username,
                 }
             # defaults
-            return {"apify_token_enc": None, "scraper_sources": [], "gemini_api_key_enc": None}
+            return {
+                "apify_token_enc": None,
+                "scraper_sources": [],
+                "gemini_api_key_enc": None,
+                "github_token_enc": None,
+                "github_username": None,
+            }
 
     def save_integrations(
         self,
         apify_token_enc: str | None = None,
         scraper_sources: list | None = None,
         gemini_api_key_enc: str | None = None,
+        github_token_enc: str | None = None,
+        github_username: str | None = None,
+        clear_github: bool = False,
     ) -> None:
+        from ...db.models import IntegrationConfig
         with get_session() as db:
             existing = db.query(IntegrationConfig).first()
             if existing:
@@ -337,15 +349,27 @@ class SQLAlchemyCampaignRepository:
                     existing.scraper_sources = scraper_sources
                 if gemini_api_key_enc is not None:
                     existing.gemini_api_key_enc = gemini_api_key_enc
+                if clear_github:
+                    # Explicit disconnect — null both columns
+                    existing.github_token_enc = None
+                    existing.github_username = None
+                else:
+                    if github_token_enc is not None:
+                        existing.github_token_enc = github_token_enc
+                    if github_username is not None:
+                        existing.github_username = github_username
             else:
                 db.add(
                     IntegrationConfig(
                         apify_token_enc=apify_token_enc,
                         scraper_sources=scraper_sources if scraper_sources is not None else [],
                         gemini_api_key_enc=gemini_api_key_enc,
+                        github_token_enc=None if clear_github else github_token_enc,
+                        github_username=None if clear_github else github_username,
                     )
                 )
             db.commit()
+
 
     def get_gemini_api_key(self) -> str | None:
         """Return the decrypted Gemini API key from config, or None if unset."""
@@ -498,6 +522,8 @@ class SQLAlchemyCampaignRepository:
             "source": job.source,
             "match_score": job.match_score,
             "scraped_at": job.scraped_at.isoformat() if job.scraped_at else None,
+            "status": job.status,
+            "applied_at": job.applied_at.isoformat() if job.applied_at else None,
         }
 
     def get_intel_report(self, company: str) -> dict | None:
@@ -540,6 +566,364 @@ class SQLAlchemyCampaignRepository:
                     )
                 )
                 db.commit()
+
+    def get_gmail_credentials(self, email: str | None = None) -> dict | None:
+        from ...db.models import GmailCredential
+        with get_session() as db:
+            if email:
+                cred = db.query(GmailCredential).filter_by(email=email).first()
+                if not cred:
+                    cred = db.query(GmailCredential).first()
+            else:
+                cred = db.query(GmailCredential).first()
+            if cred:
+                db.expunge(cred)
+                return {
+                    "email": getattr(cred, "email", None),
+                    "client_id_enc": cred.client_id_enc,
+                    "client_secret_enc": cred.client_secret_enc,
+                    "access_token_enc": cred.access_token_enc,
+                    "refresh_token_enc": cred.refresh_token_enc,
+                    "token_uri": cred.token_uri,
+                    "scopes": cred.scopes,
+                    "updated_at": cred.updated_at,
+                }
+            return None
+
+    def save_gmail_credentials(
+        self,
+        email: str | None = None,
+        client_id_enc: str | None = None,
+        client_secret_enc: str | None = None,
+        access_token_enc: str | None = None,
+        refresh_token_enc: str | None = None,
+        token_uri: str | None = None,
+        scopes: list | None = None,
+    ) -> None:
+        from ...db.models import GmailCredential
+        with get_session() as db:
+            if email:
+                existing = db.query(GmailCredential).filter_by(email=email).first()
+            else:
+                existing = db.query(GmailCredential).first()
+            now = datetime.now(timezone.utc)
+            if existing:
+                if email is not None:
+                    existing.email = email
+                if client_id_enc is not None:
+                    existing.client_id_enc = client_id_enc
+                if client_secret_enc is not None:
+                    existing.client_secret_enc = client_secret_enc
+                if access_token_enc is not None:
+                    existing.access_token_enc = access_token_enc
+                if refresh_token_enc is not None:
+                    existing.refresh_token_enc = refresh_token_enc
+                if token_uri is not None:
+                    existing.token_uri = token_uri
+                if scopes is not None:
+                    existing.scopes = scopes
+                existing.updated_at = now
+            else:
+                db.add(
+                    GmailCredential(
+                        email=email,
+                        client_id_enc=client_id_enc,
+                        client_secret_enc=client_secret_enc,
+                        access_token_enc=access_token_enc,
+                        refresh_token_enc=refresh_token_enc,
+                        token_uri=token_uri,
+                        scopes=scopes,
+                        updated_at=now,
+                    )
+                )
+            db.commit()
+
+    def get_decrypted_gmail_credentials(self, email: str | None = None) -> dict | None:
+        from ...config.secrets import decrypt_secret
+        creds = self.get_gmail_credentials(email)
+        if not creds:
+            return None
+        def safe_decrypt(val: str | None) -> str | None:
+            if not val:
+                return None
+            try:
+                return decrypt_secret(val)
+            except Exception:
+                return None
+        return {
+            "email": creds.get("email"),
+            "client_id": safe_decrypt(creds["client_id_enc"]),
+            "client_secret": safe_decrypt(creds["client_secret_enc"]),
+            "access_token": safe_decrypt(creds["access_token_enc"]),
+            "refresh_token": safe_decrypt(creds["refresh_token_enc"]),
+            "token_uri": creds["token_uri"],
+            "scopes": creds["scopes"],
+            "updated_at": creds["updated_at"],
+        }
+
+    def get_all_decrypted_gmail_credentials(self) -> list[dict]:
+        from ...config.secrets import decrypt_secret
+        from ...db.models import GmailCredential
+        with get_session() as db:
+            rows = db.query(GmailCredential).all()
+        def safe_decrypt(val: str | None) -> str | None:
+            if not val:
+                return None
+            try:
+                return decrypt_secret(val)
+            except Exception:
+                return None
+        result = []
+        for cred in rows:
+            result.append({
+                "email": getattr(cred, "email", None),
+                "client_id": safe_decrypt(cred.client_id_enc),
+                "client_secret": safe_decrypt(cred.client_secret_enc),
+                "access_token": safe_decrypt(cred.access_token_enc),
+                "refresh_token": safe_decrypt(cred.refresh_token_enc),
+                "token_uri": cred.token_uri,
+                "scopes": cred.scopes,
+                "updated_at": cred.updated_at,
+            })
+        return result
+
+    # ---- Contacts ----
+    @staticmethod
+    def _contact_to_dict(c) -> dict:
+        return {
+            "id": c.id,
+            "name": c.name,
+            "current_company": c.current_company,
+            "role": c.role,
+            "email": c.email,
+            "linkedin_url": c.linkedin_url,
+            "x_handle": c.x_handle,
+            "relationship": c.relationship,
+            "notes": c.notes,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+
+    def list_contacts(self, limit: int = 100, offset: int = 0) -> list[dict]:
+        from ...db.models import Contact
+        with get_session() as db:
+            q = db.query(Contact).order_by(Contact.created_at.desc()).offset(offset).limit(limit)
+            return [self._contact_to_dict(c) for c in q.all()]
+
+    def get_contact(self, contact_id: str) -> dict | None:
+        from ...db.models import Contact
+        with get_session() as db:
+            c = db.query(Contact).filter_by(id=contact_id).first()
+            return self._contact_to_dict(c) if c else None
+
+    def create_contact(self, name: str, current_company: str | None = None, role: str | None = None, email: str | None = None, linkedin_url: str | None = None, x_handle: str | None = None, relationship: str = "cold", notes: str | None = None) -> dict:
+        from ...db.models import Contact
+        cid = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        with get_session() as db:
+            c = Contact(
+                id=cid,
+                name=name,
+                current_company=current_company,
+                role=role,
+                email=email,
+                linkedin_url=linkedin_url,
+                x_handle=x_handle,
+                relationship=relationship,
+                notes=notes,
+                created_at=now,
+            )
+            db.add(c)
+            db.commit()
+        return self.get_contact(cid)
+
+    def update_contact(self, contact_id: str, data: dict) -> dict | None:
+        from ...db.models import Contact
+        with get_session() as db:
+            c = db.query(Contact).filter_by(id=contact_id).first()
+            if not c:
+                return None
+            for k, v in data.items():
+                if v is not None:
+                    setattr(c, k, v)
+            db.commit()
+        return self.get_contact(contact_id)
+
+    def delete_contact(self, contact_id: str) -> bool:
+        from ...db.models import Contact
+        with get_session() as db:
+            deleted = db.query(Contact).filter_by(id=contact_id).delete()
+            db.commit()
+            return bool(deleted)
+
+    def search_contacts_by_company(self, company: str) -> list[dict]:
+        from ...db.models import Contact
+        with get_session() as db:
+            q = db.query(Contact).filter(Contact.current_company.ilike(f"%{company}%")).order_by(Contact.name.asc())
+            return [self._contact_to_dict(c) for c in q.all()]
+
+    # ---- Memory Bank ----
+    @staticmethod
+    def _memory_entry_to_dict(m) -> dict:
+        return {
+            "id": m.id,
+            "type": m.type,
+            "key": m.key,
+            "value": m.value,
+            "source": m.source,
+            "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+        }
+
+    def list_memory_entries(self) -> list[dict]:
+        from ...db.models import MemoryEntry
+        with get_session() as db:
+            q = db.query(MemoryEntry).order_by(MemoryEntry.updated_at.desc())
+            return [self._memory_entry_to_dict(m) for m in q.all()]
+
+    def save_memory_entry(self, type: str, key: str, value: str, source: str = "user_input") -> dict:
+        from ...db.models import MemoryEntry
+        now = datetime.now(timezone.utc)
+        with get_session() as db:
+            existing = db.query(MemoryEntry).filter_by(type=type, key=key).first()
+            if existing:
+                existing.value = value
+                existing.source = source
+                existing.updated_at = now
+                mid = existing.id
+            else:
+                mid = str(uuid.uuid4())
+                db.add(
+                    MemoryEntry(
+                        id=mid,
+                        type=type,
+                        key=key,
+                        value=value,
+                        source=source,
+                        updated_at=now,
+                    )
+                )
+            db.commit()
+        return self.get_memory_entry(mid)
+
+    def get_memory_entry(self, entry_id: str) -> dict | None:
+        from ...db.models import MemoryEntry
+        with get_session() as db:
+            m = db.query(MemoryEntry).filter_by(id=entry_id).first()
+            return self._memory_entry_to_dict(m) if m else None
+
+    # ---- Roadmaps ----
+    @staticmethod
+    def _roadmap_to_dict(r) -> dict:
+        return {
+            "id": r.id,
+            "title": r.title,
+            "generated_at": r.generated_at.isoformat() if r.generated_at else None,
+            "nodes": r.nodes or {},
+        }
+
+    def create_roadmap(self, title: str, nodes: dict) -> dict:
+        from ...db.models import Roadmap
+        rid = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        with get_session() as db:
+            r = Roadmap(
+                id=rid,
+                title=title,
+                nodes=nodes,
+                generated_at=now,
+            )
+            db.add(r)
+            db.commit()
+        return self.get_roadmap(rid)
+
+    def get_roadmap(self, roadmap_id: str) -> dict | None:
+        from ...db.models import Roadmap
+        with get_session() as db:
+            r = db.query(Roadmap).filter_by(id=roadmap_id).first()
+            return self._roadmap_to_dict(r) if r else None
+
+    def update_roadmap_nodes(self, roadmap_id: str, nodes: dict) -> dict | None:
+        from ...db.models import Roadmap
+        with get_session() as db:
+            r = db.query(Roadmap).filter_by(id=roadmap_id).first()
+            if not r:
+                return None
+            r.nodes = nodes
+            db.commit()
+        return self.get_roadmap(roadmap_id)
+
+    def update_roadmap_node_status(self, roadmap_id: str, node_id: str, completed: bool | None = None, status: str | None = None) -> dict | None:
+        from ...db.models import Roadmap
+        with get_session() as db:
+            r = db.query(Roadmap).filter_by(id=roadmap_id).first()
+            if not r:
+                return None
+            nodes_data = r.nodes or {}
+            updated = False
+            
+            def update_status(node):
+                if completed is not None:
+                    node["status"] = "completed" if completed else "not_started"
+                elif status is not None:
+                    node["status"] = status
+                else:
+                    node["status"] = "not_started" if node.get("status") == "completed" else "completed"
+
+            # 1. Update in phases structure
+            if "phases" in nodes_data and isinstance(nodes_data["phases"], list):
+                for phase in nodes_data["phases"]:
+                    if "nodes" in phase and isinstance(phase["nodes"], list):
+                        for node in phase["nodes"]:
+                            if str(node.get("id")) == str(node_id):
+                                update_status(node)
+                                updated = True
+                                break
+
+            # 2. Update in flat nodes structure
+            if "nodes" in nodes_data and isinstance(nodes_data["nodes"], list):
+                for node in nodes_data["nodes"]:
+                    if str(node.get("id")) == str(node_id):
+                        update_status(node)
+                        updated = True
+                        break
+            
+            # 3. Update in old dict format
+            elif not updated and str(node_id) in nodes_data:
+                node = nodes_data[str(node_id)]
+                update_status(node)
+                updated = True
+
+            if updated:
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(r, "nodes")
+                db.commit()
+        return self.get_roadmap(roadmap_id)
+
+    # ---- Job status & stats updates ----
+    def get_jobs_stats(self) -> dict[str, int]:
+        from sqlalchemy import func
+        from ...db.models import Job
+        with get_session() as db:
+            statuses = ["scraped", "cold_emailed", "applied", "rejected", "in_process", "offer"]
+            result = {status: 0 for status in statuses}
+            rows = db.query(Job.status, func.count(Job.id)).group_by(Job.status).all()
+            for status, count in rows:
+                if status in result:
+                    result[status] = count
+            return result
+
+    def update_job_status(self, job_id: str, status: str) -> dict | None:
+        from ...db.models import Job
+        with get_session() as db:
+            job = db.query(Job).filter_by(id=job_id).first()
+            if not job:
+                return None
+            job.status = status
+            if status == "applied":
+                job.applied_at = datetime.now(timezone.utc)
+            db.commit()
+            return self._job_to_dict(job)
+
+
 
 
 class SQLAlchemyEventRepository:

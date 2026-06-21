@@ -5,7 +5,7 @@ import { LogoMark } from "../components/Logo.jsx";
 import { Button, Input, Banner } from "../components/ui.jsx";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginAsGuest } = useAuth();
   const [step, setStep] = useState("email"); // "email" | "code"
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -150,6 +150,20 @@ export default function Login() {
             </form>
           )}
         </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase">or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <button
+          type="button"
+          onClick={loginAsGuest}
+          data-testid="login-guest"
+          className="w-full mt-4 border border-border px-4 py-2 font-mono text-[11px] uppercase font-bold tracking-[0.12em] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          Continue as guest
+        </button>
 
         <div className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground/60 text-center mt-6 uppercase">
           Passwordless · codes expire in 10 min

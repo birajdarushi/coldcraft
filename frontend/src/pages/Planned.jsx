@@ -15,14 +15,18 @@ function NotImplemented({ endpoints, summary }) {
       </Banner>
       <Panel title="Planned contract" code="forward spec">
         <p className="font-mono text-[12px] leading-relaxed text-foreground/90 mb-3">{summary}</p>
-        <Overline>Intended endpoints</Overline>
-        <ul className="mt-2 space-y-1">
-          {endpoints.map((e) => (
-            <li key={e} className="font-mono text-[11px] text-muted-foreground">
-              <span className="text-accent">▸</span> {e}
-            </li>
-          ))}
-        </ul>
+        {import.meta.env.DEV && (
+          <>
+            <Overline>Intended endpoints</Overline>
+            <ul className="mt-2 space-y-1">
+              {endpoints.map((e) => (
+                <li key={e} className="font-mono text-[11px] text-muted-foreground">
+                  <span className="text-accent">▸</span> {e}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <div className="mt-4">
           <Button variant="secondary" disabled>Unavailable</Button>
         </div>

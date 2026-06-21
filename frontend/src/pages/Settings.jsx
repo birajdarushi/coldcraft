@@ -16,7 +16,7 @@ const TABS = [
 ];
 
 function AccountTab() {
-  const { email, logout } = useAuth();
+  const { email, isGuest, logout } = useAuth();
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +31,21 @@ function AccountTab() {
       setError(e?.detail || "Could not delete account.");
       setBusy(false);
     }
+  }
+
+  if (isGuest) {
+    return (
+      <Panel title="Session">
+        <Banner tone="warn">
+          You're browsing as a guest. Sign in with email to manage an account.
+        </Banner>
+        <div className="mt-4">
+          <Button variant="secondary" onClick={logout} data-testid="account-exit-guest">
+            <LogOut className="w-3.5 h-3.5" /> Exit guest
+          </Button>
+        </div>
+      </Panel>
+    );
   }
 
   return (
@@ -400,10 +415,58 @@ function IntegrationsTab() {
   const [form, setForm] = useState(null);
   const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
+  const [connectingGithub, setConnectingGithub] = useState(false);
   const [msg, setMsg] = useState(null);
 
   async function load() { setForm(null); setMsg(null); setToken(""); setForm(await api.getIntegrations()); }
   useEffect(() => { load(); }, []);
+
+  // Detect redirect back from GitHub OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const githubStatus = params.get("github");
+    if (githubStatus === "connected") {
+      const username = params.get("username") || "";
+      setMsg({ tone: "success", text: `GITHUB CONNECTED${username ? " AS: " + username : ""} ✓` });
+      // Clean URL back to just ?tab=integrations
+      window.history.replaceState({}, document.title, window.location.pathname + "?tab=integrations");
+      load();
+    } else if (githubStatus === "error") {
+      const reason = params.get("reason") || "unknown";
+      setMsg({ tone: "error", text: `GITHUB CONNECTION FAILED: ${reason}` });
+      window.history.replaceState({}, document.title, window.location.pathname + "?tab=integrations");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleConnectGithub() {
+    setConnectingGithub(true);
+    setMsg(null);
+    try {
+      // Pass our frontend origin so the backend callback knows where to redirect the browser
+      const { redirect_url } = await api.connectGithub(window.location.origin);
+      if (redirect_url) {
+        window.location.href = redirect_url;
+      }
+    } catch (e) {
+      setMsg({ tone: "error", text: e?.detail || "FAILED TO LAUNCH GITHUB AUTH" });
+      setConnectingGithub(false);
+    }
+  }
+
+  async function handleDisconnectGithub() {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await api.disconnectGithub();
+      setForm(r);
+      setMsg({ tone: "success", text: "GITHUB DISCONNECTED" });
+    } catch (e) {
+      setMsg({ tone: "error", text: e?.detail || "FAILED TO DISCONNECT GITHUB" });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function save(e) {
     e.preventDefault(); setSaving(true); setMsg(null);
@@ -419,26 +482,71 @@ function IntegrationsTab() {
 
   if (!form) return <Loading />;
   return (
-    <Panel title="Integrations" code="GET/PUT /api/v1/integrations · secrets write-only">
-      <form onSubmit={save} className="space-y-4">
-        <Field label="Apify token" hint={form.apify_token ? "stored: ***  ·  blank keeps existing" : "none stored"}>
-          <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={form.apify_token ? "(keep existing ***)" : "paste token"} />
-        </Field>
-        <Field label="Scraper sources" hint="comma separated">
-          <Input value={(form.scraper_sources || []).join(", ")}
-            onChange={(e) => setForm((f) => ({ ...f, scraper_sources: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))} />
-        </Field>
-        <div className="flex flex-wrap gap-1">
-          {(form.scraper_sources || []).map((s) => <Tag key={s}>{s}</Tag>)}
+    <div className="space-y-5">
+      <Panel title="Integrations" code="GET/PUT /api/v1/integrations · secrets write-only">
+        <form onSubmit={save} className="space-y-4">
+          <Field label="Apify token" hint={form.apify_token ? "stored: ***  ·  blank keeps existing" : "none stored"}>
+            <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={form.apify_token ? "(keep existing ***)" : "paste token"} />
+          </Field>
+          <Field label="Scraper sources" hint="comma separated">
+            <Input value={(form.scraper_sources || []).join(", ")}
+              onChange={(e) => setForm((f) => ({ ...f, scraper_sources: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))} />
+          </Field>
+          <div className="flex flex-wrap gap-1">
+            {(form.scraper_sources || []).map((s) => <Tag key={s}>{s}</Tag>)}
+          </div>
+          <SaveBar saving={saving} msg={msg} onReload={load} />
+        </form>
+      </Panel>
+
+      <Panel title="GitHub Developer Connection" code="OAuth integration with GitHub API">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
+              Connect your GitHub account to sync your repositories and generate professional project summary blurbs for your cold emails.
+            </p>
+          </div>
+          <div>
+            {form.github_token ? (
+              <div className="flex flex-col items-end gap-2">
+                <span className="inline-block border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-1 font-mono text-[10px] text-emerald-400">
+                  CONNECTED AS: {form.github_username || "unknown"}
+                </span>
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={handleDisconnectGithub}
+                  disabled={saving}
+                >
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleConnectGithub}
+                disabled={connectingGithub || saving}
+              >
+                {connectingGithub ? "Redirecting..." : "Connect GitHub"}
+              </Button>
+            )}
+          </div>
         </div>
-        <SaveBar saving={saving} msg={msg} onReload={load} />
-      </form>
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
 export default function Settings() {
-  const [tab, setTab] = useState("account");
+  const [tab, setTab] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get("tab");
+      if (t && TABS.some(item => item.key === t)) return t;
+    } catch (e) {}
+    return "account";
+  });
   return (
     <AppShell title="Settings" subtitle="// CONFIGURABLE LAYER · GET/PUT /API/V1/*">
       <div className="p-5 max-w-4xl">
@@ -446,7 +554,7 @@ export default function Settings() {
           {TABS.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} data-testid={`settings-tab-${t.key}`}
               className={`flex items-center gap-2 px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider ${tab === t.key ? "bg-foreground text-background" : "bg-surface text-muted-foreground hover:bg-muted"}`}>
-              <span className="opacity-50 text-[9px]">{t.code}</span>{t.label}
+              {import.meta.env.DEV && <span className="opacity-50 text-[9px]">{t.code}</span>}{t.label}
             </button>
           ))}
         </div>

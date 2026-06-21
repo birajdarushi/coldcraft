@@ -119,6 +119,14 @@ export const api = {
   saveFeatures: (body) => request(`${V1}/features`, { method: "PUT", body }),
   getIntegrations: () => request(`${V1}/integrations`),
   saveIntegrations: (body) => request(`${V1}/integrations`, { method: "PUT", body }),
+  // connectGithub: passes frontend_origin so backend callback knows where to redirect the browser.
+  // The backend handles code exchange; frontend just reads ?github=connected on return.
+  connectGithub: (frontendOrigin) => {
+    const params = new URLSearchParams();
+    if (frontendOrigin) params.set("frontend_origin", frontendOrigin);
+    return request(`${V1}/integrations/github/connect?${params.toString()}`);
+  },
+  disconnectGithub: () => request(`${V1}/integrations/github/disconnect`, { method: "POST" }),
 
   // Provider API keys (LLM + scraper) — status only on GET; keys write-only.
   getProviders: () => request(`${V1}/providers`),
@@ -136,6 +144,42 @@ export const api = {
   // AI: generate from a job description (grounded on stored resumes) + auto-fix
   generateResume: (body) => request(`${V1}/resumes/generate`, { method: "POST", body }),
   fixLatex: (latex_source) => request(`${V1}/resumes/fix`, { method: "POST", body: { latex_source } }),
+
+  // Inbox v2
+  connectInbox: (redirectUri) => request(`${V1}/inbox/connect?redirect_uri=${encodeURIComponent(redirectUri)}`),
+  callbackInbox: (code, redirectUri) => request(`${V1}/inbox/callback?code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`),
+  listInboxThreads: (pageToken = "") => {
+    const q = pageToken ? `?page_token=${encodeURIComponent(pageToken)}` : "";
+    return request(`${V1}/inbox/threads${q}`);
+  },
+  createInboxReply: (threadId) => request(`${V1}/inbox/threads/${encodeURIComponent(threadId)}/reply`, { method: "POST" }),
+  sendInboxReply: (threadId, body) => request(`${V1}/inbox/threads/${encodeURIComponent(threadId)}/send`, { method: "POST", body }),
+  scanUnsubscribeTargets: () => request(`${V1}/inbox/unsubscribe/scan`, { method: "POST" }),
+  bulkUnsubscribe: (threadIds) => request(`${V1}/inbox/unsubscribe/bulk`, { method: "POST", body: { thread_ids: threadIds } }),
+  unsubscribeThread: (threadId) => request(`${V1}/inbox/threads/${encodeURIComponent(threadId)}/unsubscribe`, { method: "POST" }),
+  archiveThread: (threadId) => request(`${V1}/inbox/threads/${encodeURIComponent(threadId)}/archive`, { method: "POST" }),
+  trashThread: (threadId) => request(`${V1}/inbox/threads/${encodeURIComponent(threadId)}/trash`, { method: "POST" }),
+
+  // Jobs v2 extensions
+  getJob: (jobId) => request(`${V1}/jobs/${encodeURIComponent(jobId)}`),
+  updateJobStatus: (jobId, status) => request(`${V1}/jobs/${encodeURIComponent(jobId)}/status`, { method: "PUT", body: { status } }),
+
+  // Network v2
+  listContacts: () => request(`${V1}/network/contacts`),
+  createContact: (body) => request(`${V1}/network/network/contacts` ? `${V1}/network/contacts` : `${V1}/network/contacts`, { method: "POST", body }),
+  updateContact: (id, body) => request(`${V1}/network/contacts/${encodeURIComponent(id)}`, { method: "PUT", body }),
+  deleteContact: (id) => request(`${V1}/network/contacts/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  searchContacts: (company) => request(`${V1}/network/search?company=${encodeURIComponent(company)}`),
+
+  // Roadmaps v2
+  generateRoadmap: (body) => request(`${V1}/roadmaps`, { method: "POST", body }),
+  getRoadmap: (id) => request(`${V1}/roadmaps/${encodeURIComponent(id)}`),
+  updateRoadmapNode: (id, nodeId, body) => request(`${V1}/roadmaps/${encodeURIComponent(id)}/nodes/${encodeURIComponent(nodeId)}`, { method: "PUT", body }),
+
+  // Memory v2
+  listMemory: () => request(`${V1}/memory`),
+  saveMemory: (body) => request(`${V1}/memory`, { method: "PUT", body }),
+  syncGithubSummary: () => request(`${V1}/memory/github-summary`, { method: "POST" }),
 };
 
 async function compilePdf(path, body) {

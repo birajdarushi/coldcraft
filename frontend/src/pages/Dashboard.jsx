@@ -72,7 +72,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Metric label="Sent today" loading={loading} error={error}
               value={stats?.sent_today}
-              sub={effLimit != null ? `${remaining} remaining · cap ${effLimit}/day` : "GET /stats"} />
+              sub={effLimit != null ? `${remaining} remaining · cap ${effLimit}/day` : (import.meta.env.DEV ? "GET /stats" : "")} />
             <Metric label="Open rate" loading={loading} error={error}
               value={stats ? `${(stats.open_rate * 100).toFixed(1)}%` : ""}
               sub="(opened + replied) / sent" />
@@ -118,9 +118,11 @@ export default function Dashboard() {
             )}
           </Panel>
 
-          <div className="font-mono text-[10px] text-muted-foreground/60">
-            // ALL VALUES FROM /api/v1. ZEROS ARE VALID DATA. NO FABRICATED METRICS.
-          </div>
+          {import.meta.env.DEV && (
+            <div className="font-mono text-[10px] text-muted-foreground/60">
+              // ALL VALUES FROM /api/v1. ZEROS ARE VALID DATA. NO FABRICATED METRICS.
+            </div>
+          )}
         </div>
 
         {/* right rail */}

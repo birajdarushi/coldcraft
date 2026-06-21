@@ -13,6 +13,10 @@ from .profile import get_profile_router
 from .providers import get_providers_router
 from .resumes import get_resumes_router
 from .tracking import get_tracking_router
+from .inbox import get_inbox_router
+from .memory import get_memory_router
+from .roadmaps import get_roadmaps_router
+from .network import get_network_router
 
 __all__ = [
     "health_router",
@@ -29,4 +33,8 @@ __all__ = [
     "get_providers_router",
     "get_resumes_router",
     "get_tracking_router",
+    "get_inbox_router",
+    "get_memory_router",
+    "get_roadmaps_router",
+    "get_network_router",
 ]

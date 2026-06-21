@@ -314,6 +314,51 @@
       ],
       "evidence": "",
       "notes": ""
+    },
+    {
+      "id": "p4-network-manager",
+      "priority": 51,
+      "area": "network",
+      "title": "Network Manager CRUD and Search API",
+      "user_visible_behavior": "GET/POST/PUT/DELETE /api/v1/network/contacts manage contacts, and GET /api/v1/network/search?company=X searches warm/cold contacts by company.",
+      "status": "passing",
+      "verification": [
+        "POST /api/v1/network/contacts creates contact",
+        "GET /api/v1/network/contacts lists contacts",
+        "GET /api/v1/network/search?company=X returns matching contacts"
+      ],
+      "evidence": "2026-06-21: Implemented in coldcraft/api/routers/network.py and SQLAlchemyCampaignRepository. Unit tests in test_network_memory_roadmaps.py cover full CRUD and search operations.",
+      "notes": ""
+    },
+    {
+      "id": "p4-memory-bank",
+      "priority": 52,
+      "area": "memory",
+      "title": "Memory Bank CRUD and GitHub integration API",
+      "user_visible_behavior": "GET/PUT /api/v1/memory manages memory bank entries, and POST /api/v1/memory/github-summary aggregates and LLM-summarizes user repositories.",
+      "status": "passing",
+      "verification": [
+        "PUT /api/v1/memory saves memory entry",
+        "GET /api/v1/memory lists memory entries",
+        "POST /api/v1/memory/github-summary fetches and summarizes top 5 GitHub repositories"
+      ],
+      "evidence": "2026-06-21: Implemented in coldcraft/api/routers/memory.py. If GITHUB_TOKEN is available, fetches user repos; otherwise uses fallback stub repos. Summarizes using Gemini if GEMINI_API_KEY is available, else falls back to robust stub. Tested in test_network_memory_roadmaps.py.",
+      "notes": ""
+    },
+    {
+      "id": "p4-learning-roadmaps",
+      "priority": 53,
+      "area": "roadmaps",
+      "title": "Learning Roadmaps generation and update API",
+      "user_visible_behavior": "POST /api/v1/roadmaps generates node-graph learning structure via Gemini; GET /api/v1/roadmaps/{id} fetches it; and PUT /api/v1/roadmaps/{id}/nodes/{node_id} updates node status.",
+      "status": "passing",
+      "verification": [
+        "POST /api/v1/roadmaps creates node-graph roadmap",
+        "GET /api/v1/roadmaps/{id} fetches roadmap graph",
+        "PUT /api/v1/roadmaps/{id}/nodes/{node_id} toggles/updates completion status of a roadmap node"
+      ],
+      "evidence": "2026-06-21: Implemented in coldcraft/api/routers/roadmaps.py. Gemini-based JSON roadmap generation prompt with robust structured fallback graph. Node status updates support direct boolean toggles or explicit statuses. Evaluated and verified in test_network_memory_roadmaps.py.",
+      "notes": ""
     }
   ]
 }

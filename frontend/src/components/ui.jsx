@@ -1,6 +1,9 @@
 // Primitive UI building blocks for the operator console.
 // Sharp corners, mono type, high contrast — per the Coldcraft design system.
 
+// Dev-only annotations (endpoint hints, screen codes) are hidden in production.
+const IS_DEV = import.meta.env.DEV;
+
 export function Button({ variant = "secondary", className = "", children, ...props }) {
   const base =
     "inline-flex items-center justify-center gap-2 px-4 py-2 font-mono text-[11px] uppercase font-bold tracking-[0.12em] transition-opacity disabled:opacity-40 disabled:cursor-not-allowed";
@@ -25,7 +28,7 @@ export function Panel({ title, code, right, className = "", bodyClass = "", chil
         <header className="flex items-center justify-between gap-3 px-4 h-10 border-b border-border">
           <div className="flex items-baseline gap-2 min-w-0">
             {title && <Overline>{title}</Overline>}
-            {code && <span className="font-mono text-[9px] text-muted-foreground/60 truncate">{code}</span>}
+            {IS_DEV && code && <span className="font-mono text-[9px] text-muted-foreground/60 truncate">{code}</span>}
           </div>
           {right}
         </header>
@@ -105,8 +108,10 @@ export function Toggle({ checked, onChange, testId }) {
 
 export function Loading({ label = "AWAITING DATA…" }) {
   return (
-    <div className="flex items-center gap-2 py-8 px-1">
-      <span className="pulse-square w-2 h-2 bg-muted-foreground" />
+    <div className="flex items-center gap-3.5 py-8 px-1">
+      <div className="brand-loader-base">
+        <div className="brand-loader-walker" />
+      </div>
       <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</span>
     </div>
   );
