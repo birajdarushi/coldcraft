@@ -93,7 +93,7 @@ function NavItem({ item, planned }) {
         }`
       }
     >
-      <span className="font-mono text-[9px] w-5">{item.code}</span>
+      {IS_DEV && <span className="font-mono text-[9px] w-5">{item.code}</span>}
       <Icon className="w-3.5 h-3.5" />
       <span className="font-mono text-[11px] tracking-[0.2em] uppercase font-medium">{item.label}</span>
       {planned && (
@@ -153,11 +153,13 @@ function Sidebar() {
         <ThemeToggle />
       </div>
 
-      <div className="px-4 py-3 border-t border-border">
-        <div className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/60 leading-relaxed truncate">
-          {location.pathname} · v0.1·mock
+      {IS_DEV && (
+        <div className="px-4 py-3 border-t border-border">
+          <div className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/60 leading-relaxed truncate">
+            {location.pathname} · v0.1·mock
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }
@@ -169,7 +171,7 @@ function TopBar({ title, subtitle, right }) {
         <h1 className="font-sans uppercase tracking-tighter text-2xl font-extrabold leading-none truncate">
           {title}
         </h1>
-        {subtitle && (
+        {IS_DEV && subtitle && (
           <span className="hidden lg:inline font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase truncate">
             {subtitle}
           </span>
