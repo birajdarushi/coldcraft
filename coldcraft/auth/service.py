@@ -162,6 +162,23 @@ class _OTPMailConfig:
         )
 
 
+def _resolve_mail_config():
+    """Prefer the SMTP config already saved in Settings (e.g. the live Gmail
+    sender used for campaigns) so login codes go out for real with no extra
+    setup. Fall back to env config (Mailpit in dev) when nothing is saved."""
+    try:
+        from ..infrastructure.persistence.repositories import (
+            SQLAlchemyCampaignRepository,
+        )
+
+        cfg = SQLAlchemyCampaignRepository().get_user_config()
+        if cfg and getattr(cfg, "smtp_host", None):
+            return cfg
+    except Exception:
+        logger.exception("Could not load saved SMTP config; using env fallback")
+    return _OTPMailConfig()
+
+
 def _send_otp_email(email: str, code: str) -> None:
     subject = f"Your Coldcraft login code: {code}"
     text = (
@@ -178,7 +195,7 @@ def _send_otp_email(email: str, code: str) -> None:
   <p style="margin-top:24px;color:#A3A3A3;font-size:12px">Expires in {CODE_TTL_MINUTES} minutes. Ignore this email if you didn't request it.</p>
 </div>"""
     try:
-        SMTPClient(_OTPMailConfig()).send(
+        SMTPClient(_resolve_mail_config()).send(
             to_email=email,
             to_name=email.split("@")[0],
             subject=subject,

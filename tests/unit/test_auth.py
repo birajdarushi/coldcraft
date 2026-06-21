@@ -147,6 +147,42 @@ class OtpServiceTests(unittest.TestCase):
                 s.query(AuthOTP).filter(AuthOTP.email == "del@example.com").count(), 0
             )
 
+    def test_otp_reuses_saved_campaign_smtp(self):
+        # When a campaign SMTP config is saved, OTP mail uses it (not env).
+        self.service._send_otp_email = self._orig_send  # exercise real resolver
+        from coldcraft.infrastructure.persistence.repositories import (
+            SQLAlchemyCampaignRepository,
+        )
+
+        SQLAlchemyCampaignRepository().save_user_config(
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            smtp_user="u",
+            smtp_pass_enc="x",
+            from_email="from@example.com",
+            from_name="From",
+            delivery_mode="smtp",
+        )
+        captured = {}
+
+        class FakeClient:
+            def __init__(self, config):
+                captured["config"] = config
+
+            def send(self, **kw):
+                captured.update(kw)
+                return "<id>"
+
+        orig_client = self.service.SMTPClient
+        self.service.SMTPClient = FakeClient
+        try:
+            self.service.request_otp("recipient@example.com")
+        finally:
+            self.service.SMTPClient = orig_client
+
+        self.assertEqual(captured["config"].smtp_host, "smtp.example.com")
+        self.assertEqual(captured["to_email"], "recipient@example.com")
+
     def test_send_failure_surfaces_as_runtime_error(self):
         def boom(email, code):
             raise RuntimeError("smtp down")
