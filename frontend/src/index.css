@@ -69,6 +69,19 @@
   animation: pulseSquare 1.6s ease-in-out infinite;
 }
 
+/* Landing intro: entrance + "track to header" exit transition */
+@keyframes introIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+.intro-in {
+  animation: introIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.intro-move {
+  transition: transform 850ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 700ms ease;
+  will-change: transform, opacity;
+}
+
 /* Toggle switch (adapted from Uiverse.io by martinval9) — theme-aware */
 .switch {
   font-size: 16px;
