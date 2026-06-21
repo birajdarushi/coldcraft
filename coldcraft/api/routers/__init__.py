@@ -1,4 +1,5 @@
 """Versioned API routers for /api/v1."""
+from .auth import get_auth_router
 from .campaigns import get_campaigns_router
 from .config import get_config_router
 from .drafts import get_drafts_router
@@ -15,6 +16,7 @@ from .tracking import get_tracking_router
 
 __all__ = [
     "health_router",
+    "get_auth_router",
     "get_drafts_router",
     "get_campaigns_router",
     "get_config_router",

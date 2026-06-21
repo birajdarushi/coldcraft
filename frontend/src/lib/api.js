@@ -4,6 +4,29 @@
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
+// --- Auth token (email-OTP login) -----------------------------------------
+const TOKEN_KEY = "coldcraft-token";
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+export function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+function authHeaders() {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 export class ApiError extends Error {
   constructor(status, detail) {
     super(detail || `HTTP ${status}`);
@@ -17,7 +40,10 @@ async function request(path, { method = "GET", body, allow404 = false } = {}) {
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers: {
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...authHeaders(),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -40,6 +66,12 @@ async function request(path, { method = "GET", body, allow404 = false } = {}) {
 const V1 = "/api/v1";
 
 export const api = {
+  // Auth (email-OTP login)
+  requestOtp: (email) => request(`${V1}/auth/request-otp`, { method: "POST", body: { email } }),
+  verifyOtp: (email, code) => request(`${V1}/auth/verify-otp`, { method: "POST", body: { email, code } }),
+  me: () => request(`${V1}/auth/me`),
+  deleteAccount: () => request(`${V1}/auth/account`, { method: "DELETE" }),
+
   // Dashboard
   getStats: () => request(`${V1}/stats`),
 
@@ -111,7 +143,10 @@ async function compilePdf(path, body) {
   try {
     res = await fetch(`${BASE}${path}`, {
       method: "POST",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers: {
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...authHeaders(),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {

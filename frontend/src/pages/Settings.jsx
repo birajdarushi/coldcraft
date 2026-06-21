@@ -1,17 +1,80 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, KeyRound } from "lucide-react";
+import { ExternalLink, KeyRound, LogOut, Trash2 } from "lucide-react";
 import AppShell from "../components/AppShell.jsx";
 import { Button, Panel, Field, Input, Toggle, Banner, Loading, Tag, Overline } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
+import { useAuth } from "../lib/auth.jsx";
 
 const TABS = [
-  { key: "apikeys", label: "API KEYS", code: "00" },
+  { key: "account", label: "ACCOUNT", code: "00" },
+  { key: "apikeys", label: "API KEYS", code: "01" },
   { key: "config", label: "SMTP CONFIG", code: "09" },
   { key: "profile", label: "PROFILE", code: "08" },
   { key: "policies", label: "POLICIES", code: "10" },
   { key: "features", label: "FEATURES", code: "11" },
   { key: "integrations", label: "INTEGRATIONS", code: "12" },
 ];
+
+function AccountTab() {
+  const { email, logout } = useAuth();
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function deleteAccount() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteAccount();
+      logout(); // clears token + returns to login
+    } catch (e) {
+      setError(e?.detail || "Could not delete account.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <Panel title="Session" code="GET /api/v1/auth/me · email-OTP login">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Overline>Signed in as</Overline>
+            <div className="font-mono text-[14px] mt-1" data-testid="account-email">{email || "—"}</div>
+          </div>
+          <Button variant="secondary" onClick={logout} data-testid="account-signout">
+            <LogOut className="w-3.5 h-3.5" /> Sign out
+          </Button>
+        </div>
+      </Panel>
+
+      <Panel title="Danger zone" code="DELETE /api/v1/auth/account" className="border-red-500/60">
+        <p className="font-mono text-[11px] leading-relaxed text-muted-foreground mb-4">
+          Deleting your account removes all login codes tied to{" "}
+          <span className="text-foreground">{email}</span> and signs you out. This cannot be undone.
+        </p>
+        {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
+        <Field label="Type DELETE to confirm" className="max-w-xs">
+          <Input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="DELETE"
+            data-testid="account-delete-confirm"
+          />
+        </Field>
+        <div className="mt-3">
+          <Button
+            variant="danger"
+            onClick={deleteAccount}
+            disabled={busy || confirm !== "DELETE"}
+            data-testid="account-delete"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> {busy ? "Deleting…" : "Delete account"}
+          </Button>
+        </div>
+      </Panel>
+    </div>
+  );
+}
 
 function ProviderRow({ p, onSave }) {
   const [val, setVal] = useState("");
@@ -178,7 +241,7 @@ function ConfigTab() {
         {!live && (
           <Banner tone="warn" testId="mailpit-note">
             Mailpit mode active — the SMTP credentials below are ignored. Sends land at{" "}
-            <a className="underline" href="http://localhost:8025" target="_blank" rel="noreferrer">localhost:8025</a>.
+            <a className="underline" href={import.meta.env.VITE_MAILPIT_URL || "http://localhost:8025"} target="_blank" rel="noreferrer">the Mailpit inbox</a>.
           </Banner>
         )}
       </div>
@@ -375,7 +438,7 @@ function IntegrationsTab() {
 }
 
 export default function Settings() {
-  const [tab, setTab] = useState("apikeys");
+  const [tab, setTab] = useState("account");
   return (
     <AppShell title="Settings" subtitle="// CONFIGURABLE LAYER · GET/PUT /API/V1/*">
       <div className="p-5 max-w-4xl">
@@ -388,6 +451,7 @@ export default function Settings() {
           ))}
         </div>
 
+        {tab === "account" && <AccountTab />}
         {tab === "apikeys" && <ApiKeysTab />}
         {tab === "config" && <ConfigTab />}
         {tab === "profile" && <ProfileTab />}
