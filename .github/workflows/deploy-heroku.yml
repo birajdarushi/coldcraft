@@ -1,0 +1,22 @@
+name: Deploy backend to Heroku
+
+# Backend CD: on every push to main, build the Dockerfile and release it to the
+# Heroku container app. (Frontend CD is handled by Vercel's native Git
+# integration — pushes to main deploy the frontend automatically.)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy container to Heroku
+        uses: akhileshns/heroku-deploy@v3.13.15
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: coldcraft-gtm-api
+          heroku_email: birajdarushi@gmail.com
+          usedocker: true
