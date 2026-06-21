@@ -1,40 +1,49 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useTheme } from "../lib/theme.jsx";
 import {
-  LayoutDashboard, Send, PenLine, Briefcase, FileSearch,
+  LayoutDashboard, Mail, PenLine, Briefcase, Network,
   SlidersHorizontal, ExternalLink, Sun, Moon, Square,
-  GitBranch, Clock, Reply, Network, FileText,
+  GitBranch, Brain
 } from "lucide-react";
 
 const NAV = [
   { to: "/", label: "DASHBOARD", code: "01", icon: LayoutDashboard, testId: "nav-dashboard" },
-  { to: "/campaigns", label: "CAMPAIGNS", code: "02", icon: Send, testId: "nav-campaigns" },
-  { to: "/compose", label: "COMPOSE", code: "04", icon: PenLine, testId: "nav-compose" },
-  { to: "/jobs", label: "JOBS", code: "05", icon: Briefcase, testId: "nav-jobs" },
-  { to: "/intel", label: "INTEL", code: "07", icon: FileSearch, testId: "nav-intel" },
-  { to: "/resumes", label: "RESUMES", code: "06", icon: FileText, testId: "nav-resumes" },
+  { to: "/inbox", label: "INBOX", code: "02", icon: Mail, testId: "nav-inbox" },
+  { to: "/pipeline", label: "PIPELINE", code: "03", icon: Briefcase, testId: "nav-pipeline" },
+  { to: "/apply", label: "APPLY", code: "04", icon: PenLine, testId: "nav-apply" },
+  { to: "/network", label: "NETWORK", code: "05", icon: Network, testId: "nav-network" },
+  { to: "/roadmap", label: "ROADMAP", code: "06", icon: GitBranch, testId: "nav-roadmap" },
+  { to: "/memory", label: "MEMORY", code: "07", icon: Brain, testId: "nav-memory" },
   { to: "/settings", label: "SETTINGS", code: "08", icon: SlidersHorizontal, testId: "nav-settings" },
 ];
 
-// Dev tooling endpoints. In production these come from env (or are hidden) so
-// the shell never points operators at localhost.
+const NAV_PLANNED = [];
+
 const IS_DEV = import.meta.env.DEV;
 const API_BASE = import.meta.env.VITE_API_URL || (IS_DEV ? "http://localhost:8000" : "");
 const MAILPIT_URL = import.meta.env.VITE_MAILPIT_URL || (IS_DEV ? "http://localhost:8025" : "");
 
-const NAV_PLANNED = [
-  { to: "/workflows", label: "WORKFLOW", code: "13", icon: GitBranch, testId: "nav-workflows" },
-  { to: "/followups", label: "FOLLOW-UPS", code: "14", icon: Clock, testId: "nav-followups" },
-  { to: "/replies", label: "REPLIES", code: "15", icon: Reply, testId: "nav-replies" },
-  { to: "/network", label: "NETWORK", code: "16", icon: Network, testId: "nav-network" },
-];
-
 function BrandMark() {
+  const size = 28;
+  const inner = Math.round(size * 0.43);
+  const corner = Math.max(4, Math.round(size * 0.29));
+  const off = Math.max(2, Math.round(size * 0.07));
+  const border = Math.max(1, Math.round(size * 0.07));
+
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="relative w-7 h-7 bg-foreground flex items-center justify-center" data-testid="brand-mark">
-        <Square className="w-3 h-3 text-background" strokeWidth={3} fill="currentColor" />
-        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 bg-accent" />
+    <div 
+      className="brand-mark-container"
+      style={{
+        "--logo-size": `${size}px`,
+        "--logo-corner": `${corner}px`,
+        "--logo-offset": `${off}px`,
+        "--logo-border": `${border}px`,
+        "--logo-inner": `${inner}px`,
+      }}
+    >
+      <div className="brand-mark-logo" data-testid="brand-mark">
+        <div className="brand-mark-inner" />
+        <span className="brand-mark-accent" />
       </div>
       <div className="leading-none">
         <div className="font-sans font-extrabold tracking-tighter uppercase text-[18px]">Coldcraft</div>

@@ -105,6 +105,19 @@ class DummyCampaignRepo:
     def save_intel_report(self, company, sections, generated_at):
         pass
 
+    def get_gmail_credentials(self, email=None):
+        return None
+
+    def save_gmail_credentials(self, email=None, client_id_enc=None, client_secret_enc=None, access_token_enc=None, refresh_token_enc=None, token_uri=None, scopes=None):
+        pass
+
+    def get_decrypted_gmail_credentials(self, email=None):
+        return None
+
+    def get_all_decrypted_gmail_credentials(self):
+        return []
+
+
 
 class CreateDraftUseCaseTests(unittest.TestCase):
     def test_blocks_do_not_contact(self):

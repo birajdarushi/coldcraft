@@ -157,6 +157,8 @@ class IntegrationUpdate(BaseModel):
 class IntegrationResponse(BaseModel):
     apify_token: str | None = None  # redacted (*** or None) on output; never the real secret
     scraper_sources: list
+    github_token: str | None = None
+    github_username: str | None = None
 
 
 class ScrapeRequest(BaseModel):
@@ -174,6 +176,10 @@ class JobResponse(BaseModel):
     source: str
     match_score: float | None = None
     scraped_at: str | None = None
+    status: str = "scraped"
+    applied_at: str | None = None
+
+
 
 
 class ScrapeResponse(BaseModel):
@@ -204,9 +210,155 @@ class IntelReportResponse(BaseModel):
 def serialize_integrations(data: dict | None) -> dict:
     """Return redacted view: never includes raw apify_token or other secrets."""
     if not data:
-        return {"apify_token": None, "scraper_sources": []}
+        return {"apify_token": None, "scraper_sources": [], "github_token": None, "github_username": None}
     has_apify = bool(data.get("apify_token_enc"))
+    has_github = bool(data.get("github_token_enc"))
     return {
         "apify_token": "***" if has_apify else None,
         "scraper_sources": data.get("scraper_sources") or [],
+        "github_token": "***" if has_github else None,
+        "github_username": data.get("github_username"),
     }
+
+
+# ---- Contact Schemas ----
+class ContactCreate(BaseModel):
+    name: str
+    current_company: str | None = None
+    role: str | None = None
+    email: str | None = None
+    linkedin_url: str | None = None
+    x_handle: str | None = None
+    relationship: str = "cold"
+    notes: str | None = None
+
+
+class ContactUpdate(BaseModel):
+    name: str | None = None
+    current_company: str | None = None
+    role: str | None = None
+    email: str | None = None
+    linkedin_url: str | None = None
+    x_handle: str | None = None
+    relationship: str | None = None
+    notes: str | None = None
+
+
+class ContactResponse(BaseModel):
+    id: str
+    name: str
+    current_company: str | None = None
+    role: str | None = None
+    email: str | None = None
+    linkedin_url: str | None = None
+    x_handle: str | None = None
+    relationship: str
+    notes: str | None = None
+    created_at: str
+
+
+def serialize_contact(c) -> dict:
+    if c is None:
+        return {}
+    return {
+        "id": c.get("id") if isinstance(c, dict) else getattr(c, "id", None),
+        "name": c.get("name") if isinstance(c, dict) else getattr(c, "name", None),
+        "current_company": c.get("current_company") if isinstance(c, dict) else getattr(c, "current_company", None),
+        "role": c.get("role") if isinstance(c, dict) else getattr(c, "role", None),
+        "email": c.get("email") if isinstance(c, dict) else getattr(c, "email", None),
+        "linkedin_url": c.get("linkedin_url") if isinstance(c, dict) else getattr(c, "linkedin_url", None),
+        "x_handle": c.get("x_handle") if isinstance(c, dict) else getattr(c, "x_handle", None),
+        "relationship": c.get("relationship") if isinstance(c, dict) else getattr(c, "relationship", "cold"),
+        "notes": c.get("notes") if isinstance(c, dict) else getattr(c, "notes", None),
+        "created_at": c.get("created_at") if isinstance(c, dict) else (c.created_at.isoformat() if getattr(c, "created_at", None) else None),
+    }
+
+
+# ---- Memory Bank Schemas ----
+class MemoryEntryCreate(BaseModel):
+    type: str
+    key: str
+    value: str
+    source: str = "user_input"
+
+
+class MemoryEntryUpdate(BaseModel):
+    value: str
+    source: str = "user_input"
+
+
+class MemoryEntryResponse(BaseModel):
+    id: str
+    type: str
+    key: str
+    value: str
+    source: str
+    updated_at: str
+
+
+def serialize_memory_entry(m) -> dict:
+    if m is None:
+        return {}
+    return {
+        "id": m.get("id") if isinstance(m, dict) else getattr(m, "id", None),
+        "type": m.get("type") if isinstance(m, dict) else getattr(m, "type", None),
+        "key": m.get("key") if isinstance(m, dict) else getattr(m, "key", None),
+        "value": m.get("value") if isinstance(m, dict) else getattr(m, "value", None),
+        "source": m.get("source") if isinstance(m, dict) else getattr(m, "source", "user_input"),
+        "updated_at": m.get("updated_at") if isinstance(m, dict) else (m.updated_at.isoformat() if getattr(m, "updated_at", None) else None),
+    }
+
+
+# ---- Roadmap Schemas ----
+class RoadmapCreate(BaseModel):
+    title: str
+    syllabus: str | None = None
+
+
+class NodeStatusUpdate(BaseModel):
+    completed: bool | None = None
+    status: str | None = None
+
+
+class RoadmapNode(BaseModel):
+    id: str
+    label: str
+    status: str = "not_started"
+    resources: list[dict] = []
+    dependencies: list[str] = []
+
+
+class RoadmapEdge(BaseModel):
+    source: str
+    target: str
+
+
+class RoadmapNodeRich(BaseModel):
+    id: str
+    label: str
+    description: str | None = None
+    status: str = "not_started"
+    duration: str | None = None
+    subtopics: list[str] = []
+    resources: list[dict] = []
+
+
+class RoadmapPhase(BaseModel):
+    phase_number: int
+    title: str
+    description: str | None = None
+    nodes: list[RoadmapNodeRich] = []
+
+
+class RoadmapGraph(BaseModel):
+    nodes: list[RoadmapNode]
+    edges: list[RoadmapEdge] = []
+    phases: list[RoadmapPhase] = []
+
+
+class RoadmapResponse(BaseModel):
+    id: str
+    title: str
+    generated_at: str
+    nodes: RoadmapGraph
+

@@ -7,9 +7,9 @@
 | **Repository root** | `<repository-root>` |
 | **Standard startup** | `python3 scripts/dev_up.py` |
 | **Standard verification** | `PYTHONPATH=. python3 -m unittest discover -s tests/unit -p 'test_*.py' -q` |
-| **Current phase** | 0 → 1 (foundation done, operable loop next) |
+| **Current phase** | 1 → 4 (operable loop & network/memory/learning CRUD complete) |
 | **Architectural principles** | API-first · Configurable · Constitution-bound (see `PLAN.md`) |
-| **Highest priority unfinished feature** | p2-pm-workflow (p2-intel-report just passed) |
+| **Highest priority unfinished feature** | p2-pm-workflow (p4 network/memory/learning CRUD passed) |
 | **Current blocker** | None |
 
 ### Verified working (with evidence)
@@ -130,3 +130,51 @@
 | **Commits** | (pending) |
 | **Known risks** | Greenhouse HTML entities in description field (cosmetic). Apify/LinkedIn source not wired yet. |
 | **Next best action** | p2-intel-report. Update handoff + clean-state at session end. |
+
+### Session 2026-06-21 — Gmail OAuth & Inbox Hub Implementation
+
+| Field | Value |
+|-------|-------|
+| **Goal** | Implement Gmail OAuth flows, connection callbacks, thread list, smart tag heuristics, and draft reply generation. |
+| **Completed** | Implemented `GmailClient` with OAuth and token exchange/refresh logic in `coldcraft/infrastructure/gmail_client.py`. Implemented the inbox API endpoints in `coldcraft/api/routers/inbox.py`. Wired up the route registrations under `/api/v1/inbox` in `coldcraft/api/app.py` and `coldcraft/api/routers/__init__.py`. Added database persistence functions to repositories and schemas. Created comprehensive unit tests in `tests/unit/test_inbox.py` covering OAuth URLs, callbacks, mock thread fallbacks, and smart drafting heuristics. |
+| **Verification run** | `PYTHONPATH=. .venv/bin/python -m unittest discover -s tests/unit -p 'test_*.py' -q` (52 tests passed successfully). |
+| **Evidence recorded** | Verified OAuth URL structures, SQLite-based credential persistence (with encryption), mock fallback list formatting, and smart email thread classification and reply drafting. |
+| **Commits** | (pending) |
+| **Known risks** | None. All v2 endpoints compile, load cleanly, and integrate with base configurations. |
+| **Next best action** | Integrate background workers for periodic reply ingestion. |
+
+### Session 2026-06-21 — Network Manager, Memory Bank, & Learning Roadmaps
+
+| Field | Value |
+|-------|-------|
+| **Goal** | Implement CRUD and search endpoints/repositories for Network Manager, Memory Bank, and Learning Roadmaps; implement Kanban stats and job status updates. |
+| **Completed** | Implemented CRUD for contacts and "who do I know at X" search in `coldcraft/api/routers/network.py`. Implemented memory bank CRUD and GitHub summary integration (fetches from API if token exists, fallback to stub; summarizes via Gemini or fallback stub) in `coldcraft/api/routers/memory.py`. Implemented learning roadmaps Gemini generation (with fallbacks) and node status completion updates in `coldcraft/api/routers/roadmaps.py`. Added corresponding repository operations in `SQLAlchemyCampaignRepository` and interface methods to `CampaignRepositoryPort`. Updated Pydantic schemas in `schemas.py` and router registrations in `app.py`. Added comprehensive integration tests in `tests/unit/test_network_memory_roadmaps.py`. |
+| **Verification run** | `PYTHONPATH=. .venv/bin/python -m unittest discover -s tests/unit -p 'test_*.py' -q` (all 56 tests passed successfully). |
+| **Evidence recorded** | Verified endpoints for Contact CRUD + search, Memory PUT/GET + Git summary, Roadmap generation + node status toggles, and Job status update + stats Kanban aggregates. |
+| **Commits** | (pending) |
+| **Known risks** | None. LLM templates fallback gracefully to high-quality stubs if credentials are not set. |
+| **Next best action** | Implement Phase 2 orchestration workflow `p2-pm-workflow`. |
+
+### Session 2026-06-21 — Wired Inline Send Reply & Multi-Gmail
+
+| Field | Value |
+|-------|-------|
+| **Goal** | Replace mock setTimeout with live backend API call for sending replies, and add multiple connected Gmail credentials support. |
+| **Completed** | Added `email` column to `GmailCredential` model and automatic DB schema migration on startup. Updated `CampaignRepositoryPort` and `SQLAlchemyCampaignRepository` with email-aware query/save/decrypt methods. Added `get_user_profile` method to `GmailClient` to fetch email address dynamically. Modified connection callback in `inbox.py` to auto-fetch and store connected user email. Aggregated inbox thread listing across all connected Gmail accounts and tagged them with `connected_email`. Implemented `POST /api/v1/inbox/threads/{id}/send` backend endpoint with automatic credentials lookup matching thread email. Registered `sendInboxReply` on frontend `api.js` client and wired the Send Inline Reply button in `Inbox.jsx` with full async call & error/success state handling. |
+| **Verification run** | Rebuilt schema + restarted dev API server; ran full unit test discover suite (60 tests passed OK); ran production Vite frontend build successfully (zero errors/warnings). |
+| **Evidence recorded** | Verified email column persistence, OAuth connection profile fetching, multi-account thread listing aggregation, send endpoint dispatch mechanics, and Vite production bundle compilation. |
+| **Commits** | (pending) |
+| **Known risks** | None. Sandbox testing isolates OAuth credentials safely. |
+| **Next best action** | Implement Phase 2 orchestration workflow `p2-pm-workflow`. |
+
+### Session 2026-06-21 — Gmail Layout Redesign & Unsubscriber
+
+| Field | Value |
+|-------|-------|
+| **Goal** | Redesign Inbox Hub layout to support folders and full-width list/reading views; build an automatic unsubscriber for unread/unlabeled emails >30 days. |
+| **Completed** | Implemented `scan_unsubscribed_targets` and `unsubscribe_thread` in `GmailClient`. Created backend routes `/inbox/unsubscribe/scan`, `/inbox/unsubscribe/bulk`, and `/inbox/threads/{id}/unsubscribe`. Registered API methods in `api.js`. Redesigned `Inbox.jsx` UI layout supporting Sidebar folders (Inbox, Starred, Sent, Drafts, Clean Up), full-width email thread lists with star/checkbox/hover actions, and full-width thread reading views. Built the "Clean Up" panel UI for bulk unsubscribe clutter management. Added 4 unit tests covering parsing and endpoints in `test_inbox.py`. |
+| **Verification run** | Ran full unittest discover (64 tests passed successfully); ran production Vite frontend build (clean compilation, zero warnings/errors). |
+| **Evidence recorded** | Verified List-Unsubscribe parsing, Scan return candidates, individual/bulk unsubscribe endpoints, responsive folder layout navigation, hover action trigger, and production Vite compilation. |
+| **Commits** | (pending) |
+| **Known risks** | None. Sandbox testing executes correctly. |
+| **Next best action** | Implement Phase 2 orchestration workflow `p2-pm-workflow`. |

@@ -106,6 +106,8 @@ class Job(Base):
     source: Mapped[str] = mapped_column(String(64), default="careers_page")
     scraped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="scraped", server_default="scraped")
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class DoNotContact(Base):
@@ -142,7 +144,10 @@ class IntegrationConfig(Base):
     scraper_sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # Encrypted LLM provider API key (Gemini) — powers drafting/intel.
     gemini_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Future integration fields (IMAP, etc.) can be added as additional columns or evolve to a data JSON column.
+    
+    # GitHub Integration
+    github_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class IntelReport(Base):
@@ -161,4 +166,53 @@ class Resume(Base):
     kind: Mapped[str] = mapped_column(String(32), default="resume")  # 'resume' | 'cover_letter'
     latex_source: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    current_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    x_handle: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    relationship: Mapped[str] = mapped_column(String(64), default="cold")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class MemoryEntry(Base):
+    __tablename__ = "memory_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    type: Mapped[str] = mapped_column(String(64))  # 'identity', 'style', 'resume_bullet', 'github_summary', 'outcome'
+    key: Mapped[str] = mapped_column(String(255))
+    value: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(64), default="user_input")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Roadmap(Base):
+    __tablename__ = "roadmaps"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    title: Mapped[str] = mapped_column(String(255))
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    nodes: Mapped[dict] = mapped_column(JSON)  # list of nodes and their statuses
+
+
+class GmailCredential(Base):
+    __tablename__ = "gmail_credentials"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    client_id_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_secret_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    access_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    refresh_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_uri: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    scopes: Mapped[list | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -108,8 +108,10 @@ export function Toggle({ checked, onChange, testId }) {
 
 export function Loading({ label = "AWAITING DATA…" }) {
   return (
-    <div className="flex items-center gap-2 py-8 px-1">
-      <span className="pulse-square w-2 h-2 bg-muted-foreground" />
+    <div className="flex items-center gap-3.5 py-8 px-1">
+      <div className="brand-loader-base">
+        <div className="brand-loader-walker" />
+      </div>
       <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</span>
     </div>
   );

@@ -160,3 +160,117 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* Custom brand loader animation: blue square walking the perimeter of a black square */
+@keyframes walkPerimeter {
+  0%, 100% {
+    top: 0;
+    left: 0;
+  }
+  25% {
+    top: 0;
+    left: 16px;
+  }
+  50% {
+    top: 16px;
+    left: 16px;
+  }
+  75% {
+    top: 16px;
+    left: 0;
+  }
+}
+
+.brand-loader-base {
+  width: 24px;
+  height: 24px;
+  background-color: #000000;
+  border: 2px solid hsl(var(--foreground));
+  position: relative;
+  box-sizing: border-box;
+}
+
+.brand-loader-walker {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: hsl(var(--accent)); /* brand blue */
+  box-sizing: border-box;
+  animation: walkPerimeter 1.6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  box-shadow: 0 0 6px hsl(var(--accent) / 0.6);
+}
+
+/* Interactive Brand Mark / Logo Hover Walk animation */
+.brand-mark-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.brand-mark-logo {
+  position: relative;
+  width: var(--logo-size, 28px);
+  height: var(--logo-size, 28px);
+  background-color: #000000;
+  border: var(--logo-border, 2px) solid hsl(var(--foreground));
+  box-sizing: border-box;
+  overflow: visible;
+  transition: border-color 0.3s ease;
+}
+
+.brand-mark-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--logo-inner, 12px);
+  height: var(--logo-inner, 12px);
+  background-color: hsl(var(--background));
+  border: var(--logo-border, 2px) solid hsl(var(--foreground));
+  transition: opacity 0.25s ease;
+}
+
+.brand-mark-accent {
+  position: absolute;
+  right: calc(-1 * var(--logo-offset, 2px));
+  bottom: calc(-1 * var(--logo-offset, 2px));
+  width: var(--logo-corner, 8px);
+  height: var(--logo-corner, 8px);
+  background-color: hsl(var(--accent));
+  box-shadow: 0 0 4px hsl(var(--accent) / 0.4);
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Interactive hover trigger */
+.brand-mark-container:hover .brand-mark-inner {
+  opacity: 0;
+}
+
+.brand-mark-container:hover .brand-mark-accent {
+  animation: walkPerimeterApp 1.6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  box-shadow: 0 0 8px hsl(var(--accent) / 0.7);
+}
+
+@keyframes walkPerimeterApp {
+  0% {
+    top: calc(-1 * var(--logo-offset, 2px));
+    left: calc(-1 * var(--logo-offset, 2px));
+  }
+  25% {
+    top: calc(-1 * var(--logo-offset, 2px));
+    left: calc(var(--logo-size, 28px) - var(--logo-corner, 8px) + var(--logo-offset, 2px));
+  }
+  50% {
+    top: calc(var(--logo-size, 28px) - var(--logo-corner, 8px) + var(--logo-offset, 2px));
+    left: calc(var(--logo-size, 28px) - var(--logo-corner, 8px) + var(--logo-offset, 2px));
+  }
+  75% {
+    top: calc(var(--logo-size, 28px) - var(--logo-corner, 8px) + var(--logo-offset, 2px));
+    left: calc(-1 * var(--logo-offset, 2px));
+  }
+  100% {
+    top: calc(-1 * var(--logo-offset, 2px));
+    left: calc(-1 * var(--logo-offset, 2px));
+  }
+}

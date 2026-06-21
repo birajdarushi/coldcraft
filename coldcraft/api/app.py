@@ -23,6 +23,10 @@ from .routers import (
     get_resumes_router,
     health_router,
     get_tracking_router,
+    get_inbox_router,
+    get_network_router,
+    get_memory_router,
+    get_roadmaps_router,
 )
 from .schemas import DraftRequest, ReplyRequest
 
@@ -109,6 +113,15 @@ def create_app() -> FastAPI:
     # Intel reports (p2-intel-report)
     intel_router = get_intel_router(campaigns)
     app.include_router(intel_router, prefix="/api/v1")
+
+    # Inbox hub (Gmail OAuth + thread list + reply drafts)
+    inbox_router = get_inbox_router(campaigns)
+    app.include_router(inbox_router, prefix="/api/v1")
+
+    # network, memory, and roadmaps routers
+    app.include_router(get_network_router(campaigns), prefix="/api/v1")
+    app.include_router(get_memory_router(campaigns), prefix="/api/v1")
+    app.include_router(get_roadmaps_router(campaigns), prefix="/api/v1")
 
     # Tracking (p1-tracking-api): public /track/* (no /api/v1 for pixel compat in emails)
     tracking_router = get_tracking_router(campaigns)

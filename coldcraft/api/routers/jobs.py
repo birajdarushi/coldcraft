@@ -11,6 +11,12 @@ class JobDeleteRequest(BaseModel):
     ids: list[str]
 
 
+from typing import Literal
+
+class JobStatusUpdateRequest(BaseModel):
+    status: Literal['scraped', 'cold_emailed', 'applied', 'rejected', 'in_process', 'offer']
+
+
 def get_jobs_router(campaigns_repo) -> APIRouter:
     router = APIRouter(prefix="/jobs", tags=["jobs"])
     scraper = CareersPageScraper()
@@ -22,6 +28,10 @@ def get_jobs_router(campaigns_repo) -> APIRouter:
             return scrape_use_case.execute(url=body.url, source=body.source)
         except ScraperError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @router.get("/stats")
+    def get_jobs_stats():
+        return campaigns_repo.get_jobs_stats()
 
     @router.get("", response_model=list[JobResponse])
     def list_jobs(
@@ -38,11 +48,70 @@ def get_jobs_router(campaigns_repo) -> APIRouter:
         deleted = campaigns_repo.delete_jobs(body.ids)
         return {"deleted": deleted}
 
+    @router.put("/{job_id}/status", response_model=JobResponse)
+    def update_job_status(job_id: str, body: JobStatusUpdateRequest):
+        job = campaigns_repo.update_job_status(job_id, body.status)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return job
+
     @router.delete("/{job_id}")
     def delete_job(job_id: str):
         deleted = campaigns_repo.delete_jobs([job_id])
         if deleted == 0:
             raise HTTPException(status_code=404, detail="Job not found")
         return {"deleted": deleted}
+
+    @router.get("/{job_id}", response_model=JobResponse)
+    def get_job(job_id: str):
+        from ...db.session import get_session
+        from ...db.models import Job
+        with get_session() as db:
+            job = db.query(Job).filter_by(id=job_id).first()
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+            return JobResponse(
+                id=job.id,
+                title=job.title,
+                company=job.company,
+                url=job.url,
+                location=job.location,
+                description=job.description,
+                source=job.source,
+                match_score=job.match_score,
+                scraped_at=job.scraped_at.isoformat() if job.scraped_at else None,
+                status=job.status,
+                applied_at=job.applied_at.isoformat() if job.applied_at else None,
+            )
+
+    class JobStatusUpdate(BaseModel):
+        status: str
+
+    @router.put("/{job_id}/status", response_model=JobResponse)
+    def update_job_status(job_id: str, body: JobStatusUpdate):
+        from ...db.session import get_session
+        from ...db.models import Job
+        from datetime import datetime, timezone
+        with get_session() as db:
+            job = db.query(Job).filter_by(id=job_id).first()
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+            job.status = body.status
+            if body.status == "applied":
+                job.applied_at = datetime.now(timezone.utc)
+            db.commit()
+            return JobResponse(
+                id=job.id,
+                title=job.title,
+                company=job.company,
+                url=job.url,
+                location=job.location,
+                description=job.description,
+                source=job.source,
+                match_score=job.match_score,
+                scraped_at=job.scraped_at.isoformat() if job.scraped_at else None,
+                status=job.status,
+                applied_at=job.applied_at.isoformat() if job.applied_at else None,
+            )
 
     return router
