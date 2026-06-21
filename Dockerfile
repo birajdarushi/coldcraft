@@ -32,4 +32,5 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "coldcraft.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Bind to $PORT when the platform provides one (Railway/Render), else 8000.
+CMD ["sh", "-c", "uvicorn coldcraft.api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
